@@ -30,6 +30,13 @@ func (r *MetaDescribeGetConnectorRequest) SetMethod(method string) {
 	r.method = method
 }
 
+func (r *MetaDescribeGetConnectorRequest) RequestBody() *EmptyRequestBody {
+	return &EmptyRequestBody{}
+}
+
+func (r *MetaDescribeGetConnectorRequest) SetRequestBody(body EmptyRequestBody) {
+}
+
 func (r *MetaDescribeGetConnectorRequest) URL() url.URL {
 	path := "metainfo/get/{connectorid}"
 	path = strings.Replace(path, "{connectorid}", r.urlParams.ConnectorID, 1)
@@ -72,32 +79,6 @@ func (r *MetaDescribeGetConnectorRequest) URLParams() *MetaDescribeGetConnectorU
 type MetaDescribeGetConnectorURLParams struct {
 	ConnectorID string
 }
-
-// {
-//   "name": "OmniBoost_ProjectMaintenance_Contacts",
-//   "description": "Contacten",
-//   "fields": [
-//     {
-//       "id": "Nummer_debiteur",
-//       "fieldId": "U003",
-//       "dataType": "string",
-//       "label": "Debiteur nummer",
-//       "length": 15,
-//       "controlType": 5,
-//       "decimals": 0,
-//       "decimalsFieldId": ""
-//     },
-//     {
-//       "id": "Debiteur_naam",
-//       "fieldId": "U004",
-//       "dataType": "string",
-//       "label": "Debiteur naam",
-//       "length": 255,
-//       "controlType": 1,
-//       "decimals": 0,
-//       "decimalsFieldId": ""
-//     }
-// }
 
 type MetaDescribeGetConnectorResponseBody struct {
 	Name        string `json:"name"`

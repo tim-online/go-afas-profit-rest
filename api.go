@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"path"
 	"strings"
 )
 
@@ -51,6 +52,8 @@ func NewAPI(httpClient *http.Client, accountNumber string, token string) *API {
 
 	// Services
 	api.Meta = NewMetaService(api)
+	api.Connector = NewConnectorService(api)
+
 	// api.General = NewGeneralService(api)
 	// api.CRM = NewCRMService(api)
 	// api.Financial = NewFinancialService(api)
@@ -84,7 +87,9 @@ type API struct {
 	onRequestCompleted RequestCompletionCallback
 
 	// Services used for communicating with the API
-	Meta *MetaService
+	Meta      *MetaService
+	Connector *ConnectorService
+
 	// General         *GeneralService
 	// CRM *CRMService
 	// Financial       *FinancialService
@@ -157,17 +162,18 @@ func (api *API) UserAgent() string {
 	return userAgent
 }
 
-func (api *API) GetEndpointURL(path string) url.URL {
+func (api *API) GetEndpointURL(p string) url.URL {
 	apiURL := api.BaseURL()
 	apiURL.Host = strings.Replace(apiURL.Host, "{account_number}", api.AccountNumber(), 1)
-	apiURL.Path = apiURL.Path + path
+	apiURL.Path = path.Join(apiURL.Path, p)
 	return apiURL
 }
 
 func (api *API) NewRequest(ctx context.Context, method string, URL url.URL, body interface{}) (*http.Request, error) {
 	// convert body struct to json
 	buf := new(bytes.Buffer)
-	if body != nil {
+	_, empty := body.(*EmptyRequestBody)
+	if body != nil && !empty {
 		err := json.NewEncoder(buf).Encode(body)
 		if err != nil {
 			return nil, err
@@ -249,8 +255,7 @@ func (api *API) Do(req *http.Request, responseBody interface{}) (*http.Response,
 		err = json.NewDecoder(httpResp.Body).Decode(responseBody)
 		if err != nil && err != io.EOF {
 			// create a simple error response
-			errorResponse := &ErrorResponse{Response: httpResp}
-			errorResponse.Errors = append(errorResponse.Errors, err)
+			errorResponse := &ErrorResponse1{Response: httpResp, Message: err.Error()}
 			return httpResp, errorResponse
 		}
 	}
@@ -264,20 +269,17 @@ func (api *API) Do(req *http.Request, responseBody interface{}) (*http.Response,
 // body, or a XML response body that maps to ErrorResponse. Any other response
 // body will be silently ignored.
 func CheckResponse(r *http.Response) error {
-	errorResponse := &ErrorResponse{Response: r}
-
 	err := checkContentType(r)
 	if err != nil {
-		errorResponse.Errors = append(errorResponse.Errors, err)
+		return &ErrorResponse1{Response: r, Message: err.Error()}
 	}
 
 	// Don't check content-lenght: a created response, for example, has no body
 	if r.Header.Get("Content-Length") == "0" {
-		err := errors.New("No content in response body")
-		errorResponse.Errors = append(errorResponse.Errors, err)
-		return errorResponse
+		return &ErrorResponse1{Response: r, Message: "No content in response body"}
 	}
 
+	// If the statuscode is ok: don't check for errors
 	if c := r.StatusCode; c >= 200 && c <= 299 {
 		return nil
 	}
@@ -286,88 +288,62 @@ func CheckResponse(r *http.Response) error {
 	data, err := ioutil.ReadAll(r.Body)
 	r.Body = ioutil.NopCloser(bytes.NewReader(data))
 	if err != nil {
-		return errorResponse
-	}
-
-	if len(data) == 0 {
-		return errorResponse
-	}
-
-	// convert json to struct
-	err = json.Unmarshal(data, errorResponse)
-	if err != nil {
-		errorResponse.Errors = append(errorResponse.Errors, err)
-		return errorResponse
-	}
-
-	return errorResponse
-}
-
-type ErrorResponse struct {
-	// HTTP response that caused this error
-	Response *http.Response `json:"-"`
-
-	Errors []error
-}
-
-// {
-//   "errors": [
-//     {
-//       "error": "Document should have at least one item"
-//     },
-//     {
-//       "error": "Date is not valid"
-//     },
-//     {
-//       "error": "Tax exemption should be one of: M09, M08, M07, M06, M05, M04, M03, M02, M01, M16, M15, M14, M13, M12, M11, M10, M99"
-//     }
-//   ]
-// }
-
-func (r *ErrorResponse) UnmarshalJSON(data []byte) error {
-	tmp := struct {
-		Errors []struct {
-			Error string `json:"error"`
-		} `json:"errors"`
-	}{}
-
-	err := json.Unmarshal(data, &tmp)
-	if err != nil {
 		return err
 	}
 
-	for _, err := range tmp.Errors {
-		r.Errors = append(r.Errors, errors.New(err.Error))
+	if len(data) == 0 {
+		return errors.New("No content in response body")
 	}
 
-	return nil
+	// check which type of errorresponse is sent
+	err1 := ErrorResponse1{Response: r}
+	err = json.Unmarshal(data, &err1)
+	if err1.Message != "" {
+		return err1
+	}
+
+	err2 := ErrorResponse2{Response: r}
+	err = json.Unmarshal(data, &err2)
+	if err2.ExternalMessage != "" {
+		return err2
+	}
+
+	return &ErrorResponse1{Response: r, Message: "Unknown error"}
 }
 
-func (r ErrorResponse) Error() string {
-	if len(r.Errors) > 0 {
-		str := []string{}
-		for _, err := range r.Errors {
-			str = append(str, err.Error())
-		}
-		return strings.Join(str, ", ")
-	}
+// {
+// 	"message":"Invalid json"
+// }
+type ErrorResponse1 struct {
+	// HTTP response that caused this error
+	Response *http.Response `json:"-"`
 
-	// switch r.Response.StatusCode {
-	// case 401:
-	// 	return "The API Key parameter is missing or is incorrectly entered."
-	// case 404:
-	// 	return "The requested resource does not exist."
-	// case 406:
-	// 	return "The :document-id provided is in an invalid state."
-	// case 422:
-	// 	return "Some parameters were incorrect."
-	// }
+	Message string `json:"message"`
+}
 
-	return fmt.Sprintf("Unknown status code %d", r.Response.StatusCode)
+func (r ErrorResponse1) Error() string {
+	return fmt.Sprintf("%d: %s", r.Response.StatusCode, r.Message)
+}
+
+// {
+//   "errorNumber": -2147180996,
+//   "externalMessage": "General message: Deze UpdateConnector wordt niet ondersteund of de gebruiker is niet geautoriseerd.",
+//   "profitLogReference": "923A9F6F4D5875E0D7B96982F6E4E0D2"
+// }
+type ErrorResponse2 struct {
+	// HTTP response that caused this error
+	Response *http.Response `json:"-"`
+
+	ErrorNumber        int    `json:"errorNumber"`
+	ExternalMessage    string `json:"externalMessage"`
+	ProfitLogReference string `json:"profitLogReference"`
+}
+
+func (r ErrorResponse2) Error() string {
+	return fmt.Sprintf("%d: %s", r.Response.StatusCode, r.ExternalMessage)
 }
 
 func checkContentType(response *http.Response) error {
-	// check content-type (application/soap+xml; charset=utf-8)
 	header := response.Header.Get("Content-Type")
 	contentType := strings.Split(header, ";")[0]
 	if contentType != mediaType {
@@ -375,4 +351,10 @@ func checkContentType(response *http.Response) error {
 	}
 
 	return nil
+}
+
+type EmptyRequestBody struct{}
+
+func (r EmptyRequestBody) MarshalJSON() ([]byte, error) {
+	return []byte{}, nil
 }
