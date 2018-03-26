@@ -1,0 +1,84 @@
+package afas
+
+import (
+	"encoding/json"
+	"time"
+
+	"github.com/cockroachdb/apd"
+)
+
+// {{.Struct.Comment}}
+type {{.Struct.Name}} struct {
+    {{range .Struct.Fields}} {{.Name}} {{.Type}} {{.Tags}} // {{.Comment}}
+    {{end}}
+}
+
+func ({{.TypeVariable}} {{.Type}}) MarshalJSON() ([]byte, error) {
+	type alias {{.Type}}
+
+	// type to json
+	b, err := json.Marshal(alias({{.TypeVariable}}))
+	if err != nil {
+		return b, err
+	}
+
+	// json to map with preservation of json struct tags
+	m := map[string]interface{}{}
+	json.Unmarshal(b, &m)
+
+	jsonFields := {{.TypeVariable}}.JSONFields()
+	fields := map[string]interface{}{}
+	jsonObjects := {{.TypeVariable}}.JSONObjects()
+	objects := map[string]interface{}{}
+	for k, v := range m {
+		for _, f := range jsonFields {
+			if k == f {
+				// value is a field
+				fields[k] = v
+			}
+		}
+
+		for _, f := range jsonObjects {
+			if k == f {
+				// value is an object
+				objects[k] = v
+			}
+		}
+	}
+
+	requestBody := map[string]interface{}{
+		"{{.Type}}": map[string]interface{}{
+			"Element": map[string]interface{}{
+				"@DbId":   {{.TypeVariable}}.DBID(),
+				"Fields":  fields,
+				"Objects": objects,
+			},
+		},
+	}
+
+	return json.Marshal(requestBody)
+}
+
+func (k {{.Type}}) DBIDField() string {
+	return "{{.DBIDField}}"
+}
+
+func (k {{.Type}}) DBID() string {
+	return {{.TypeVariable}}.{{.DBIDField}}
+}
+
+func (k {{.Type}}) JSONFields() []string {
+	return []string{
+        {{range .Fields}}"{{.}}",
+        {{end}}
+	}
+}
+
+func (k {{.Type}}) JSONObjects() []string {
+	return []string{
+        {{range .Objects}}"{{.}}",
+        {{end}}
+	}
+}
+
+// vim: ft=gotexttmpl

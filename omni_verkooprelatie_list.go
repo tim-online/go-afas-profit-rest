@@ -1,9 +1,5 @@
 package afas
 
-func (api *API) OMNIVerkooprelatie() *OMNIVerkooprelatieService {
-	return NewOMNIVerkooprelatieService(api)
-}
-
 type OMNIVerkooprelatieListRequest struct {
 	ConnectorListRequest
 }

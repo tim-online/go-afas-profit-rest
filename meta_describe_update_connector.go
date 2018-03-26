@@ -100,11 +100,10 @@ type MetaDescribeUpdateConnectorURLParams struct {
 // }
 
 type MetaDescribeUpdateConnectorResponseBody struct {
-	ID          string                  `json:"id"`
-	Description string                  `json:"description"`
-	Name        string                  `json:"name"`
-	Fields      []UpdateConnectorField  `json:"fields"`
-	Objects     []UpdateConnectorObject `json:"objects"`
+	ID          string `json:"id"`
+	Description string `json:"description"`
+
+	UpdateConnectorObject
 }
 
 type UpdateConnectorField struct {
@@ -125,6 +124,7 @@ type UpdateConnectorField struct {
 }
 
 type UpdateConnectorObject struct {
-	Name   string                 `json:"name"`
-	Fields []UpdateConnectorField `json:"fields"`
+	Name    string                  `json:"name"`
+	Fields  []UpdateConnectorField  `json:"fields"`
+	Objects []UpdateConnectorObject `json:"objects"`
 }

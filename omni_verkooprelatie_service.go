@@ -1,7 +1,8 @@
 package afas
 
-func NewOMNIVerkooprelatieService(api *API) *OMNIVerkooprelatieService {
+func (api *API) OMNIVerkooprelatie() *OMNIVerkooprelatieService {
 	return &OMNIVerkooprelatieService{api: api}
+
 }
 
 type OMNIVerkooprelatieService struct {

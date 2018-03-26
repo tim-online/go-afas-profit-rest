@@ -32,8 +32,8 @@ func (r *ConnectorInsertRequest) SetMethod(method string) {
 	r.method = method
 }
 
-func (r *ConnectorInsertRequest) RequestBody() *ConnectorInsertRequestBody {
-	return &r.requestBody
+func (r *ConnectorInsertRequest) RequestBody() ConnectorInsertRequestBody {
+	return r.requestBody
 }
 
 func (r *ConnectorInsertRequest) SetRequestBody(body ConnectorInsertRequestBody) {
