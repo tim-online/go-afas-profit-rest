@@ -3,57 +3,139 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"html/template"
+	"go/format"
 	"io"
+	"os"
+	"strings"
+	"text/template"
 
-	"github.com/dave/jennifer/jen"
 	"github.com/pkg/errors"
 	afas "github.com/tim-online/go-afas-profit-rest"
 )
 
-func (g Generator) generateUpdateConnectors(connectors afas.UpdateConnectors) (*jen.Statement, error) {
-	api := g.NewAPI()
+type UpdateGenerator struct {
+}
 
-	file := jen.Custom(jen.Options{
-		Open:      "",
-		Close:     "",
-		Separator: "",
-		Multi:     true,
-	})
+func (g UpdateGenerator) NewAPI() *afas.API {
+	accountNumber := os.Getenv("AFAS_ACCOUNTNUMBER")
+	token := os.Getenv("AFAS_TOKEN")
+	api := afas.NewAPI(nil, accountNumber, token)
+	api.SetDebug(false)
+	return api
+}
+
+func (g UpdateGenerator) Generate(connectors afas.UpdateConnectors) (map[string]io.Reader, error) {
+	files := map[string]io.Reader{}
+	api := g.NewAPI()
 
 	for _, c := range connectors {
 		req := api.Meta.NewDescribeUpdateConnectorRequest()
 		req.URLParams().ConnectorID = c.ID
 		resp, err := req.Do()
 		if err != nil {
-			return file, err
+			return files, err
 		}
 
-		st, err := generateUpdateConnectorResponseStruct(resp)
+		filenameBase := SnakeCase(resp.Name)
+		structs, err := generateUpdateConnectorResponseStructs(resp)
 		if err != nil {
-			return file, err
+			return files, err
 		}
 
-		file.Add(st)
+		r, err := g.GenerateTypesCode(structs)
+		if err != nil {
+			return files, err
+		}
+		filename := fmt.Sprintf("%s_types.go", filenameBase)
+		files[filename] = r
+
+		r, err = g.GenerateInsertCode(structs[0])
+		if err != nil {
+			return files, err
+		}
+		filename = fmt.Sprintf("%s_insert.go", filenameBase)
+		files[filename] = r
+
+		r, err = g.GenerateServiceCode(structs[0])
+		if err != nil {
+			return files, err
+		}
+		filename = fmt.Sprintf("%s_service.go", filenameBase)
+		files[filename] = r
 	}
 
-	return file, nil
+	return files, nil
 }
 
-func generateUpdateConnectorResponseStruct(d afas.MetaDescribeUpdateConnectorResponseBody) (*jen.Statement, error) {
-	return generateUpdateConnectorObject(d.UpdateConnectorObject)
+func (g UpdateGenerator) GenerateTypesCode(structs []UpdateConnectorStruct) (io.Reader, error) {
+	buf := bytes.NewBuffer([]byte{})
+	tmpl, err := template.ParseFiles("generate/update_connector_types.go.tmpl")
+	if err != nil {
+		return buf, err
+	}
+	err = tmpl.Execute(buf, structs)
+	if err != nil {
+		return buf, err
+	}
+
+	b, err := format.Source(buf.Bytes())
+	if err != nil {
+		return buf, err
+	}
+
+	return bytes.NewBuffer(b), nil
 }
 
-func generateUpdateConnectorStructFields(d afas.UpdateConnectorObject) ([]jen.Code, error) {
-	fields := []jen.Code{}
+func (g UpdateGenerator) GenerateInsertCode(st UpdateConnectorStruct) (io.Reader, error) {
+	buf := bytes.NewBuffer([]byte{})
+	tmpl, err := template.ParseFiles("generate/update_connector_insert.go.tmpl")
+	if err != nil {
+		return buf, err
+	}
+	err = tmpl.Execute(buf, st)
+	if err != nil {
+		return buf, err
+	}
+
+	b, err := format.Source(buf.Bytes())
+	if err != nil {
+		return buf, err
+	}
+
+	return bytes.NewBuffer(b), nil
+}
+
+func (g UpdateGenerator) GenerateServiceCode(st UpdateConnectorStruct) (io.Reader, error) {
+	buf := bytes.NewBuffer([]byte{})
+	tmpl, err := template.ParseFiles("generate/update_connector_service.go.tmpl")
+	if err != nil {
+		return buf, err
+	}
+	err = tmpl.Execute(buf, st)
+	if err != nil {
+		return buf, err
+	}
+
+	b, err := format.Source(buf.Bytes())
+	if err != nil {
+		return buf, err
+	}
+
+	return bytes.NewBuffer(b), nil
+}
+
+func generateUpdateConnectorResponseStructs(d afas.MetaDescribeUpdateConnectorResponseBody) ([]UpdateConnectorStruct, error) {
+	return generateUpdateConnectorObjects(d.UpdateConnectorObject)
+}
+
+func generateUpdateConnectorStructFields(d afas.UpdateConnectorObject) (UpdateConnectorStructFields, error) {
+	fields := UpdateConnectorStructFields{}
 	for _, f := range d.Fields {
 		sf, err := generateUpdateConnectorStructFieldFromField(f)
 		if err != nil {
 			return fields, err
 		}
-		if sf != nil {
-			fields = append(fields, sf)
-		}
+		fields = append(fields, sf)
 	}
 
 	for _, o := range d.Objects {
@@ -61,139 +143,143 @@ func generateUpdateConnectorStructFields(d afas.UpdateConnectorObject) ([]jen.Co
 		if err != nil {
 			return fields, err
 		}
-		if sf != nil {
-			fields = append(fields, sf)
-		}
+		fields = append(fields, sf)
 	}
 
 	return fields, nil
 }
 
-func generateUpdateConnectorStructFieldFromField(f afas.UpdateConnectorField) (*jen.Statement, error) {
-	fID := normalizeIdentifier(f.Label)
-	sf := jen.Id(fID)
-
+func generateUpdateConnectorStructFieldFromField(f afas.UpdateConnectorField) (UpdateConnectorStructField, error) {
 	// do type
+	typ := ""
 	switch f.DataType {
 	case "string":
-		sf = sf.String()
+		typ = "string"
 	case "int":
-		sf = sf.Int()
+		typ = "int"
 	case "boolean":
-		sf = sf.Bool()
+		typ = "bool"
 	case "date":
-		sf = sf.Qual("time", "Time")
+		typ = "time.Time"
 	case "decimal":
-		sf = sf.Op("*").Qual("github.com/cockroachdb/apd", "Decimal")
+		typ = "*apd.Decimal"
 	case "blob":
-		sf = sf.Index().Byte()
+		typ = "[]byte"
 	default:
-		return sf, errors.Errorf("Unkown datatype: %s", f.DataType)
+		return UpdateConnectorStructField{}, errors.Errorf("Unkown datatype: %s", f.DataType)
 	}
+
+	name := normalizeIdentifier(f.Label)
 
 	if len(f.Values) > 0 {
 		// @TODO: soortement van enum maken?
 	}
 
+	jsonName := f.FieldID
+
 	// json tags
-	tags := map[string]string{}
+	tags := ""
 	if f.Notzero {
-		tags["json"] = fmt.Sprintf("%s,omitempty", f.FieldID)
+		tags = fmt.Sprintf(`json:"%s,omitempty"`, jsonName)
 	} else {
-		tags["json"] = f.FieldID
+		tags = fmt.Sprintf(`json:"%s"`, jsonName)
 	}
-	sf = sf.Tag(tags)
 
 	// comment behind struct field
-	sf.Comment(f.Label)
+	comment := f.Label
 
-	return sf, nil
+	return UpdateConnectorStructField{
+		Comment:  comment,
+		Name:     name,
+		Tags:     tags,
+		Type:     typ,
+		JSONName: jsonName,
+	}, nil
 }
 
-func generateUpdateConnectorStructFieldFromObject(o afas.UpdateConnectorObject) (*jen.Statement, error) {
-	fID := normalizeIdentifier(o.Name)
-	sf := jen.Id(fID).Id(fID)
+func generateUpdateConnectorStructFieldFromObject(o afas.UpdateConnectorObject) (UpdateConnectorStructField, error) {
+	name := normalizeIdentifier(o.Name)
+	typ := name
 
 	// json tags
-	sf.Tag(map[string]string{"json": o.Name})
+	tags := fmt.Sprintf(`json:"%s"`, o.Name)
 
 	// comment behind struct field
-	sf.Comment(o.Name)
+	comment := o.Name
 
-	return sf, nil
+	return UpdateConnectorStructField{
+		Comment: comment,
+		Name:    name,
+		Tags:    tags,
+		Type:    typ,
+	}, nil
 }
 
-func generateUpdateConnectorObject(o afas.UpdateConnectorObject) (*jen.Statement, error) {
-	g := jen.Custom(jen.Options{
-		Open:      "",
-		Close:     "",
-		Separator: "",
-		Multi:     true,
-	})
+type UpdateConnectorStruct struct {
+	Comment   string
+	Name      string
+	Variable  string
+	Fields    UpdateConnectorStructFields
+	Objects   []string
+	DBIDField string
+}
 
+type UpdateConnectorStructFields []UpdateConnectorStructField
+
+type UpdateConnectorStructField struct {
+	Name     string
+	Type     string
+	Tags     string
+	Comment  string
+	JSONName string
+}
+
+func generateUpdateConnectorObjects(o afas.UpdateConnectorObject) ([]UpdateConnectorStruct, error) {
+	structs := []UpdateConnectorStruct{}
+	st, err := generateUpdateConnectorObject(o)
+	if err != nil {
+		return structs, err
+	}
+	structs = append(structs, st)
+
+	for _, o := range o.Objects {
+		substructs, err := generateUpdateConnectorObjects(o)
+		if err != nil {
+			return structs, err
+		}
+		structs = append(structs, substructs...)
+	}
+
+	return structs, nil
+}
+
+func generateUpdateConnectorObject(o afas.UpdateConnectorObject) (UpdateConnectorStruct, error) {
 	fields, err := generateUpdateConnectorStructFields(o)
 	if err != nil {
-		return g, err
-	}
-
-	// generate struct
-	id := normalizeIdentifier(o.Name)
-	g.Type().Id(id).Struct(fields...).Line().Line()
-
-	for _, o2 := range o.Objects {
-		st, err := generateUpdateConnectorObject(o2)
-		if err != nil {
-			return g, err
-		}
-		g.Add(st)
-	}
-
-	return g, nil
-}
-
-func generateUpdateConnectorStructMethods(o afas.UpdateConnectorObject) (io.Reader, error) {
-	id := normalizeIdentifier(o.Name)
-	first := string([]rune(id)[0])
-
-	fields := []string{}
-	dbIDField := ""
-	for _, f := range o.Fields {
-		fieldID := normalizeIdentifier(f.FieldID)
-		fieldName := normalizeIdentifier(f.Label)
-		if fieldID == "DbId" {
-			dbIDField = fieldName
-			continue
-		}
-		fields = append(fields, fieldID)
+		return UpdateConnectorStruct{}, err
 	}
 
 	objects := []string{}
 	for _, o := range o.Objects {
-		id := normalizeIdentifier(o.Name)
 		objects = append(objects, o.Name)
 	}
 
-	data := struct {
-		TypeVariable string
-		Type         string
-		DBIDField    string
-		Fields       []string
-		Objects      []string
-	}{
-		TypeVariable: first,
-		Type:         id,
-		DBIDField:    dbIDField,
-		Fields:       fields,
-		Objects:      objects,
+	dbIDField := ""
+	for _, f := range fields {
+		if f.JSONName == "dbId" {
+			dbIDField = f.Name
+		}
 	}
 
-	tmpl, err := template.ParseFiles("generate/update_connector_struct_methods.tmpl")
-	if err != nil {
-		return nil, err
-	}
+	name := normalizeIdentifier(o.Name)
+	variable := strings.ToLower(string([]rune(name)[0]))
 
-	buf := bytes.NewBuffer([]byte{})
-	r, w := io.Pipe()
-	err = tmpl.Execute(w, data)
-	return r, nil
+	return UpdateConnectorStruct{
+		Comment:   o.Name,
+		Name:      name,
+		Variable:  variable,
+		Fields:    fields,
+		DBIDField: dbIDField,
+		Objects:   objects,
+	}, nil
 }

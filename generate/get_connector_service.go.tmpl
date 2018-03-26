@@ -1,0 +1,12 @@
+package afas
+
+func (api *API) {{.Name}}() *{{.Name}}Service {
+	return &{{.Name}}Service{api: api}
+
+}
+
+type {{.Name}}Service struct {
+	api *API
+}
+
+// vim: ft=gotexttmpl

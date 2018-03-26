@@ -1,0 +1,13 @@
+package afas
+
+{{range .}}
+
+// {{.Comment}}
+type {{.Name}} struct {
+    {{range .Fields}} {{.Name}} {{.Type}} {{if .Tags}}`{{.Tags}}`{{end}} // {{.Comment}}
+    {{end}}
+}
+
+{{end}}
+
+// vim: ft=gotexttmpl

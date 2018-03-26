@@ -1,0 +1,32 @@
+package afas
+
+type {{.Name}}ListRequest struct {
+	ConnectorListRequest
+}
+
+type {{.Name}}ListResponseBody struct {
+	ConnectorListResponseBody
+
+	Rows []{{.Name}} `json:"rows"`
+}
+
+func (r *{{.Name}}ListRequest) ResponseBody() *{{.Name}}ListResponseBody {
+	rb := r.ConnectorListRequest.ResponseBody()
+	rows := rb.Rows.(*[]{{.Name}})
+	return &{{.Name}}ListResponseBody{
+		ConnectorListResponseBody: *rb,
+		Rows: *rows,
+	}
+}
+
+func (s *{{.Name}}Service) NewListRequest() {{.Name}}ListRequest {
+	r := s.api.Connector.NewListRequest()
+
+	rows := []{{.Name}}{}
+	r.ResponseBody().Rows = &rows
+
+	r.URLParams().ConnectorID = "{{.Name}}"
+	return {{.Name}}ListRequest{ConnectorListRequest: r}
+}
+
+// vim: ft=gotexttmpl

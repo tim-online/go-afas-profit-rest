@@ -1,12 +1,14 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
 	"os"
 	"unicode"
 
-	"github.com/dave/jennifer/jen"
+	"go/format"
+
 	afas "github.com/tim-online/go-afas-profit-rest"
 )
 
@@ -22,9 +24,6 @@ func (g Generator) NewAPI() *afas.API {
 }
 
 func (g Generator) All() error {
-	var st *jen.Statement
-	file := jen.NewFile("main")
-
 	api := g.NewAPI()
 	req := api.Meta.NewListConnectorsRequest()
 	resp, err := req.Do()
@@ -32,29 +31,44 @@ func (g Generator) All() error {
 		return err
 	}
 
-	st, err = g.generateGetConnectors(resp.GetConnectors)
+	files := map[string]io.Reader{}
+
+	getGenerator := GetGenerator{}
+	getFiles, err := getGenerator.Generate(resp.GetConnectors)
 	if err != nil {
 		return err
 	}
-	if st != nil {
-		file.Add(st)
+	for k, v := range getFiles {
+		files[k] = v
 	}
 
-	st, err = g.generateUpdateConnectors(resp.UpdateConnectors)
+	updateGenerator := UpdateGenerator{}
+	updateFiles, err := updateGenerator.Generate(resp.UpdateConnectors)
 	if err != nil {
 		return err
 	}
-	if st != nil {
-		file.Add(st)
+	for k, v := range updateFiles {
+		files[k] = v
 	}
 
-	// render package
-	buf := &bytes.Buffer{}
-	err = file.Render(buf)
-	if err != nil {
-		return err
+	for f, r := range files {
+		// format code
+		b, err := ioutil.ReadAll(r)
+		if err != nil {
+			return err
+		}
+
+		formatted, err := format.Source(b)
+		if err != nil {
+			log.Println(string(b))
+			return err
+		}
+
+		err = ioutil.WriteFile(f, r)
+		if err != nil {
+			return err
+		}
 	}
-	fmt.Println(buf)
 
 	return nil
 }

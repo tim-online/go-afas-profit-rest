@@ -1,82 +1,209 @@
 package main
 
 import (
-	"github.com/dave/jennifer/jen"
+	"bytes"
+	"fmt"
+	"go/format"
+	"io"
+	"os"
+	"strings"
+	"text/template"
+
 	"github.com/pkg/errors"
 	afas "github.com/tim-online/go-afas-profit-rest"
 )
 
-func (g Generator) generateGetConnectors(connectors afas.GetConnectors) (*jen.Statement, error) {
-	api := g.NewAPI()
+type GetGenerator struct {
+}
 
-	file := jen.Custom(jen.Options{
-		Open:      "",
-		Close:     "",
-		Separator: "",
-		Multi:     true,
-	})
+func (g GetGenerator) NewAPI() *afas.API {
+	accountNumber := os.Getenv("AFAS_ACCOUNTNUMBER")
+	token := os.Getenv("AFAS_TOKEN")
+	api := afas.NewAPI(nil, accountNumber, token)
+	api.SetDebug(false)
+	return api
+}
+
+func (g GetGenerator) Generate(connectors afas.GetConnectors) (map[string]io.Reader, error) {
+	files := map[string]io.Reader{}
+	api := g.NewAPI()
 
 	for _, c := range connectors {
 		req := api.Meta.NewDescribeGetConnectorRequest()
 		req.URLParams().ConnectorID = c.ID
 		resp, err := req.Do()
 		if err != nil {
-			return file, err
+			return files, err
 		}
 
-		st, err := generateGetConnectorResponseStruct(resp)
+		filenameBase := SnakeCase(resp.Name)
+		structs, err := generateGetConnectorResponseStructs(resp)
 		if err != nil {
-			return file, err
+			return files, err
 		}
 
-		file.Add(st)
+		r, err := g.GenerateListCode(structs[0])
+		if err != nil {
+			return files, err
+		}
+		filename := fmt.Sprintf("%s_list.go", filenameBase)
+		files[filename] = r
+
+		r, err = g.GenerateServiceCode(structs[0])
+		if err != nil {
+			return files, err
+		}
+		filename = fmt.Sprintf("%s_service.go", filenameBase)
+		files[filename] = r
+
+		r, err = g.GenerateTypesCode(structs)
+		if err != nil {
+			return files, err
+		}
+		filename = fmt.Sprintf("%s_types.go", filenameBase)
+		files[filename] = r
 	}
 
-	return file, nil
+	return files, nil
 }
 
-func generateGetConnectorResponseStruct(d afas.MetaDescribeGetConnectorResponseBody) (*jen.Statement, error) {
-	g := jen.Custom(jen.Options{
-		Open:      "",
-		Close:     "",
-		Separator: "",
-		Multi:     true,
-	})
+func (g GetGenerator) GenerateTypesCode(structs []GetConnectorStruct) (io.Reader, error) {
+	buf := bytes.NewBuffer([]byte{})
+	tmpl, err := template.ParseFiles("generate/get_connector_types.go.tmpl")
+	if err != nil {
+		return buf, err
+	}
+	err = tmpl.Execute(buf, structs)
+	if err != nil {
+		return buf, err
+	}
 
-	fields := []jen.Code{}
-	for _, f := range d.Fields {
-		fID := normalizeIdentifier(f.ID)
-		sf := jen.Id(fID)
+	b, err := format.Source(buf.Bytes())
+	if err != nil {
+		return buf, err
+	}
 
-		// do type
-		switch f.DataType {
-		case "string":
-			sf = sf.String()
-		case "int":
-			sf = sf.Int()
-		case "boolean":
-			sf = sf.Bool()
-		case "date":
-			sf = sf.Qual("time", "Time")
-		default:
-			return g, errors.Errorf("Unkown datatype: %s", f.DataType)
-		}
+	return bytes.NewBuffer(b), nil
+}
 
-		// json tags
-		sf = sf.Tag(map[string]string{"json": f.ID})
+func (g GetGenerator) GenerateListCode(st GetConnectorStruct) (io.Reader, error) {
+	buf := bytes.NewBuffer([]byte{})
+	tmpl, err := template.ParseFiles("generate/get_connector_list.go.tmpl")
+	if err != nil {
+		return buf, err
+	}
+	err = tmpl.Execute(buf, st)
+	if err != nil {
+		return buf, err
+	}
 
-		// comment behind struct field
-		sf.Comment(f.Label)
+	b, err := format.Source(buf.Bytes())
+	if err != nil {
+		return buf, err
+	}
 
-		fields = append(fields, sf)
+	return bytes.NewBuffer(b), nil
+}
+
+func (g GetGenerator) GenerateServiceCode(st GetConnectorStruct) (io.Reader, error) {
+	buf := bytes.NewBuffer([]byte{})
+	tmpl, err := template.ParseFiles("generate/get_connector_service.go.tmpl")
+	if err != nil {
+		return buf, err
+	}
+	err = tmpl.Execute(buf, st)
+	if err != nil {
+		return buf, err
+	}
+
+	b, err := format.Source(buf.Bytes())
+	if err != nil {
+		return buf, err
+	}
+
+	return bytes.NewBuffer(b), nil
+}
+
+func generateGetConnectorResponseStructs(d afas.MetaDescribeGetConnectorResponseBody) ([]GetConnectorStruct, error) {
+	st, err := generateGetConnectorResponseStruct(d)
+	return []GetConnectorStruct{st}, err
+}
+
+func generateGetConnectorResponseStruct(d afas.MetaDescribeGetConnectorResponseBody) (GetConnectorStruct, error) {
+	fields, err := generateGetConnectorStructFields(d)
+	if err != nil {
+		return GetConnectorStruct{}, err
 	}
 
 	// struct comment
-	g.Comment(d.Description).Line()
+	comment := d.Description
 
 	// struct with fields
-	id := normalizeIdentifier(d.Name)
-	g.Type().Id(id).Struct(fields...).Line()
+	name := normalizeIdentifier(d.Name)
+	variable := strings.ToLower(string([]rune(name)[0]))
 
-	return g, nil
+	return GetConnectorStruct{
+		Comment:  comment,
+		Name:     name,
+		Variable: variable,
+		Fields:   fields,
+	}, nil
+}
+
+func generateGetConnectorStructFields(d afas.MetaDescribeGetConnectorResponseBody) (GetConnectorStructFields, error) {
+	fields := GetConnectorStructFields{}
+	for _, f := range d.Fields {
+		name := normalizeIdentifier(f.ID)
+
+		// do type
+		typ := ""
+		switch f.DataType {
+		case "string":
+			typ = "string"
+		case "int":
+			typ = "int"
+		case "boolean":
+			typ = "bool"
+		case "date":
+			typ = "time.Time"
+		default:
+			return GetConnectorStructFields{}, errors.Errorf("Unkown datatype: %s", f.DataType)
+		}
+
+		jsonName := f.FieldID
+
+		// json tags
+		tags := fmt.Sprintf(`json:"%s"`, jsonName)
+
+		// comment behind struct field
+		comment := f.Label
+
+		field := GetConnectorStructField{
+			Name:     name,
+			Type:     typ,
+			Tags:     tags,
+			Comment:  comment,
+			JSONName: jsonName,
+		}
+		fields = append(fields, field)
+	}
+
+	return fields, nil
+}
+
+type GetConnectorStruct struct {
+	Comment  string
+	Name     string
+	Variable string
+	Fields   GetConnectorStructFields
+}
+
+type GetConnectorStructFields []GetConnectorStructField
+
+type GetConnectorStructField struct {
+	Name     string
+	Type     string
+	Tags     string
+	Comment  string
+	JSONName string
 }
