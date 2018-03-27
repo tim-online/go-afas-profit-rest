@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"go/format"
 	"io"
 	"os"
 	"strings"
@@ -36,27 +35,34 @@ func (g UpdateGenerator) Generate(connectors afas.UpdateConnectors) (map[string]
 			return files, err
 		}
 
-		filenameBase := SnakeCase(resp.Name)
-		structs, err := generateUpdateConnectorResponseStructs(resp)
+		st, err := generateUpdateConnectorStruct(resp)
 		if err != nil {
 			return files, err
 		}
+		filenameBase := SnakeCase(st.ID)
 
-		r, err := g.GenerateTypesCode(structs)
+		r, err := g.GenerateTypesCode(st)
 		if err != nil {
 			return files, err
 		}
 		filename := fmt.Sprintf("%s_types.go", filenameBase)
 		files[filename] = r
 
-		r, err = g.GenerateInsertCode(structs[0])
+		r, err = g.GenerateInsertCode(st)
 		if err != nil {
 			return files, err
 		}
 		filename = fmt.Sprintf("%s_insert.go", filenameBase)
 		files[filename] = r
 
-		r, err = g.GenerateServiceCode(structs[0])
+		r, err = g.GenerateTestInsertCode(st)
+		if err != nil {
+			return files, err
+		}
+		filename = fmt.Sprintf("%s_insert_test.go", filenameBase)
+		files[filename] = r
+
+		r, err = g.GenerateServiceCode(st)
 		if err != nil {
 			return files, err
 		}
@@ -67,23 +73,14 @@ func (g UpdateGenerator) Generate(connectors afas.UpdateConnectors) (map[string]
 	return files, nil
 }
 
-func (g UpdateGenerator) GenerateTypesCode(structs []UpdateConnectorStruct) (io.Reader, error) {
+func (g UpdateGenerator) GenerateTypesCode(st UpdateConnectorStruct) (io.Reader, error) {
 	buf := bytes.NewBuffer([]byte{})
 	tmpl, err := template.ParseFiles("generate/update_connector_types.go.tmpl")
 	if err != nil {
 		return buf, err
 	}
-	err = tmpl.Execute(buf, structs)
-	if err != nil {
-		return buf, err
-	}
-
-	b, err := format.Source(buf.Bytes())
-	if err != nil {
-		return buf, err
-	}
-
-	return bytes.NewBuffer(b), nil
+	err = tmpl.Execute(buf, st)
+	return buf, err
 }
 
 func (g UpdateGenerator) GenerateInsertCode(st UpdateConnectorStruct) (io.Reader, error) {
@@ -92,17 +89,36 @@ func (g UpdateGenerator) GenerateInsertCode(st UpdateConnectorStruct) (io.Reader
 	if err != nil {
 		return buf, err
 	}
-	err = tmpl.Execute(buf, st)
+
+	data := struct {
+		ID string
+		UpdateConnectorObjectStruct
+	}{
+		ID: st.ID,
+		UpdateConnectorObjectStruct: st.Objects[0],
+	}
+
+	err = tmpl.Execute(buf, data)
+	return buf, err
+}
+
+func (g UpdateGenerator) GenerateTestInsertCode(st UpdateConnectorStruct) (io.Reader, error) {
+	buf := bytes.NewBuffer([]byte{})
+	tmpl, err := template.ParseFiles("generate/update_connector_insert_test.go.tmpl")
 	if err != nil {
 		return buf, err
 	}
 
-	b, err := format.Source(buf.Bytes())
-	if err != nil {
-		return buf, err
+	data := struct {
+		ID string
+		UpdateConnectorObjectStruct
+	}{
+		ID: st.ID,
+		UpdateConnectorObjectStruct: st.Objects[0],
 	}
 
-	return bytes.NewBuffer(b), nil
+	err = tmpl.Execute(buf, data)
+	return buf, err
 }
 
 func (g UpdateGenerator) GenerateServiceCode(st UpdateConnectorStruct) (io.Reader, error) {
@@ -111,27 +127,35 @@ func (g UpdateGenerator) GenerateServiceCode(st UpdateConnectorStruct) (io.Reade
 	if err != nil {
 		return buf, err
 	}
-	err = tmpl.Execute(buf, st)
-	if err != nil {
-		return buf, err
+
+	data := struct {
+		ID string
+		UpdateConnectorObjectStruct
+	}{
+		ID: st.ID,
+		UpdateConnectorObjectStruct: st.Objects[0],
 	}
 
-	b, err := format.Source(buf.Bytes())
+	err = tmpl.Execute(buf, data)
+	return buf, err
+}
+
+func generateUpdateConnectorStruct(d afas.MetaDescribeUpdateConnectorResponseBody) (UpdateConnectorStruct, error) {
+	objects, err := generateUpdateConnectorObjects(d.UpdateConnectorObject)
 	if err != nil {
-		return buf, err
+		return UpdateConnectorStruct{}, err
 	}
 
-	return bytes.NewBuffer(b), nil
+	return UpdateConnectorStruct{
+		ID:      d.ID,
+		Objects: objects,
+	}, nil
 }
 
-func generateUpdateConnectorResponseStructs(d afas.MetaDescribeUpdateConnectorResponseBody) ([]UpdateConnectorStruct, error) {
-	return generateUpdateConnectorObjects(d.UpdateConnectorObject)
-}
-
-func generateUpdateConnectorStructFields(d afas.UpdateConnectorObject) (UpdateConnectorStructFields, error) {
-	fields := UpdateConnectorStructFields{}
+func generateUpdateConnectorObjectStructFields(d afas.UpdateConnectorObject) (UpdateConnectorObjectStructFields, error) {
+	fields := UpdateConnectorObjectStructFields{}
 	for _, f := range d.Fields {
-		sf, err := generateUpdateConnectorStructFieldFromField(f)
+		sf, err := generateUpdateConnectorObjectStructFieldFromField(f)
 		if err != nil {
 			return fields, err
 		}
@@ -139,7 +163,7 @@ func generateUpdateConnectorStructFields(d afas.UpdateConnectorObject) (UpdateCo
 	}
 
 	for _, o := range d.Objects {
-		sf, err := generateUpdateConnectorStructFieldFromObject(o)
+		sf, err := generateUpdateConnectorObjectStructFieldFromObject(o)
 		if err != nil {
 			return fields, err
 		}
@@ -149,7 +173,7 @@ func generateUpdateConnectorStructFields(d afas.UpdateConnectorObject) (UpdateCo
 	return fields, nil
 }
 
-func generateUpdateConnectorStructFieldFromField(f afas.UpdateConnectorField) (UpdateConnectorStructField, error) {
+func generateUpdateConnectorObjectStructFieldFromField(f afas.UpdateConnectorField) (UpdateConnectorObjectStructField, error) {
 	// do type
 	typ := ""
 	switch f.DataType {
@@ -160,13 +184,17 @@ func generateUpdateConnectorStructFieldFromField(f afas.UpdateConnectorField) (U
 	case "boolean":
 		typ = "bool"
 	case "date":
-		typ = "time.Time"
+		if f.Mandatory {
+			typ = "date.Date"
+		} else {
+			typ = "*date.Date"
+		}
 	case "decimal":
 		typ = "*apd.Decimal"
 	case "blob":
 		typ = "[]byte"
 	default:
-		return UpdateConnectorStructField{}, errors.Errorf("Unkown datatype: %s", f.DataType)
+		return UpdateConnectorObjectStructField{}, errors.Errorf("Unkown datatype: %s", f.DataType)
 	}
 
 	name := normalizeIdentifier(f.Label)
@@ -179,16 +207,28 @@ func generateUpdateConnectorStructFieldFromField(f afas.UpdateConnectorField) (U
 
 	// json tags
 	tags := ""
-	if f.Notzero {
-		tags = fmt.Sprintf(`json:"%s,omitempty"`, jsonName)
-	} else {
+	if f.Mandatory {
 		tags = fmt.Sprintf(`json:"%s"`, jsonName)
+	} else {
+		tags = fmt.Sprintf(`json:"%s,omitempty"`, jsonName)
+	}
+
+	if f.NotZero {
+		// @TODO: do something with this: validation rules?
+	}
+
+	if f.Length > 0 {
+		// @TODO: do something with this: validation rules?
+	}
+
+	if f.Decimals > 0 {
+		// @TODO: do something with thi: validation rules?
 	}
 
 	// comment behind struct field
 	comment := f.Label
 
-	return UpdateConnectorStructField{
+	return UpdateConnectorObjectStructField{
 		Comment:  comment,
 		Name:     name,
 		Tags:     tags,
@@ -197,9 +237,13 @@ func generateUpdateConnectorStructFieldFromField(f afas.UpdateConnectorField) (U
 	}, nil
 }
 
-func generateUpdateConnectorStructFieldFromObject(o afas.UpdateConnectorObject) (UpdateConnectorStructField, error) {
+func generateUpdateConnectorObjectStructFieldFromObject(o afas.UpdateConnectorObject) (UpdateConnectorObjectStructField, error) {
 	name := normalizeIdentifier(o.Name)
+
 	typ := name
+	if IsPlural(name) {
+		typ = fmt.Sprintf("[]%s", typ)
+	}
 
 	// json tags
 	tags := fmt.Sprintf(`json:"%s"`, o.Name)
@@ -207,7 +251,7 @@ func generateUpdateConnectorStructFieldFromObject(o afas.UpdateConnectorObject) 
 	// comment behind struct field
 	comment := o.Name
 
-	return UpdateConnectorStructField{
+	return UpdateConnectorObjectStructField{
 		Comment: comment,
 		Name:    name,
 		Tags:    tags,
@@ -216,26 +260,34 @@ func generateUpdateConnectorStructFieldFromObject(o afas.UpdateConnectorObject) 
 }
 
 type UpdateConnectorStruct struct {
+	ID      string
+	Objects []UpdateConnectorObjectStruct
+}
+
+type UpdateConnectorObjectStruct struct {
 	Comment   string
+	ID        string
 	Name      string
 	Variable  string
-	Fields    UpdateConnectorStructFields
+	Fields    UpdateConnectorObjectStructFields
 	Objects   []string
 	DBIDField string
 }
 
-type UpdateConnectorStructFields []UpdateConnectorStructField
+type UpdateConnectorObjectStructFields []UpdateConnectorObjectStructField
 
-type UpdateConnectorStructField struct {
+type UpdateConnectorObjectStructField struct {
 	Name     string
 	Type     string
 	Tags     string
 	Comment  string
 	JSONName string
+	// ValidationRules
 }
 
-func generateUpdateConnectorObjects(o afas.UpdateConnectorObject) ([]UpdateConnectorStruct, error) {
-	structs := []UpdateConnectorStruct{}
+func generateUpdateConnectorObjects(o afas.UpdateConnectorObject) ([]UpdateConnectorObjectStruct, error) {
+	structs := []UpdateConnectorObjectStruct{}
+
 	st, err := generateUpdateConnectorObject(o)
 	if err != nil {
 		return structs, err
@@ -247,16 +299,37 @@ func generateUpdateConnectorObjects(o afas.UpdateConnectorObject) ([]UpdateConne
 		if err != nil {
 			return structs, err
 		}
-		structs = append(structs, substructs...)
+
+		for _, substruct := range substructs {
+			structs = append(structs, substruct)
+		}
+	}
+
+	// remove duplicates
+	for i, st := range structs {
+		j := 0
+		for _, st2 := range structs {
+			if st.Name == st2.Name {
+				j = j + 1
+			}
+
+			if j > 1 {
+				break
+			}
+		}
+
+		if j > 1 {
+			structs = append(structs[:i], structs[i+1:]...)
+		}
 	}
 
 	return structs, nil
 }
 
-func generateUpdateConnectorObject(o afas.UpdateConnectorObject) (UpdateConnectorStruct, error) {
-	fields, err := generateUpdateConnectorStructFields(o)
+func generateUpdateConnectorObject(o afas.UpdateConnectorObject) (UpdateConnectorObjectStruct, error) {
+	fields, err := generateUpdateConnectorObjectStructFields(o)
 	if err != nil {
-		return UpdateConnectorStruct{}, err
+		return UpdateConnectorObjectStruct{}, err
 	}
 
 	objects := []string{}
@@ -265,16 +338,16 @@ func generateUpdateConnectorObject(o afas.UpdateConnectorObject) (UpdateConnecto
 	}
 
 	dbIDField := ""
-	for _, f := range fields {
-		if f.JSONName == "dbId" {
-			dbIDField = f.Name
+	for _, f := range o.Fields {
+		if f.PrimaryKey {
+			dbIDField = normalizeIdentifier(f.Label)
 		}
 	}
 
 	name := normalizeIdentifier(o.Name)
 	variable := strings.ToLower(string([]rune(name)[0]))
 
-	return UpdateConnectorStruct{
+	return UpdateConnectorObjectStruct{
 		Comment:   o.Name,
 		Name:      name,
 		Variable:  variable,

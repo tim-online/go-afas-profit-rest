@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"io"
 	"io/ioutil"
 	"log"
@@ -58,13 +59,16 @@ func (g Generator) All() error {
 			return err
 		}
 
+		// remove Vim modeline
+		b = bytes.Replace(b, []byte("// vim: ft=gotexttmpl"), []byte{}, -1)
+
 		formatted, err := format.Source(b)
 		if err != nil {
 			log.Println(string(b))
 			return err
 		}
 
-		err = ioutil.WriteFile(f, r)
+		err = ioutil.WriteFile(f, formatted, 0644)
 		if err != nil {
 			return err
 		}

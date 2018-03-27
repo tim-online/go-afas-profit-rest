@@ -18,7 +18,7 @@ func (s *ConnectorService) NewListRequest() ConnectorListRequest {
 			FilterFieldIDs:  "",
 		},
 		requestBody:  s.NewListRequestBody(),
-		responseBody: s.NewResponseBody(),
+		responseBody: s.NewListResponseBody(),
 	}
 }
 
@@ -78,7 +78,7 @@ func (r *ConnectorListRequest) Do() (*http.Response, error) {
 	return resp, err
 }
 
-func (s *ConnectorService) NewResponseBody() *ConnectorListResponseBody {
+func (s *ConnectorService) NewListResponseBody() *ConnectorListResponseBody {
 	return &ConnectorListResponseBody{}
 }
 

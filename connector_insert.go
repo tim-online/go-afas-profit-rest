@@ -1,6 +1,7 @@
 package afas
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
@@ -8,20 +9,22 @@ import (
 
 func (s *ConnectorService) NewInsertRequest() ConnectorInsertRequest {
 	return ConnectorInsertRequest{
-		api:         s.api,
-		method:      http.MethodPost,
-		urlParams:   ConnectorInsertURLParams{},
-		queryParams: ConnectorInsertQueryParams{},
-		requestBody: s.NewInsertRequestBody(),
+		api:          s.api,
+		method:       http.MethodPost,
+		urlParams:    ConnectorInsertURLParams{},
+		queryParams:  ConnectorInsertQueryParams{},
+		requestBody:  s.NewInsertRequestBody(),
+		responseBody: s.NewInsertResponseBody(),
 	}
 }
 
 type ConnectorInsertRequest struct {
-	api         *API
-	method      string
-	urlParams   ConnectorInsertURLParams
-	queryParams ConnectorInsertQueryParams
-	requestBody ConnectorInsertRequestBody
+	api          *API
+	method       string
+	urlParams    ConnectorInsertURLParams
+	queryParams  ConnectorInsertQueryParams
+	requestBody  ConnectorInsertRequestBody
+	responseBody *ConnectorInsertResponseBody
 }
 
 func (r *ConnectorInsertRequest) Method() string {
@@ -40,6 +43,10 @@ func (r *ConnectorInsertRequest) SetRequestBody(body ConnectorInsertRequestBody)
 	r.requestBody = body
 }
 
+func (r *ConnectorInsertRequest) ResponseBody() *ConnectorInsertResponseBody {
+	return r.responseBody
+}
+
 func (r *ConnectorInsertRequest) URL() url.URL {
 	path := "/connectors/{connectorid}[/{subelement}]"
 	path = strings.Replace(path, "{connectorid}", r.urlParams.ConnectorID, 1)
@@ -47,26 +54,26 @@ func (r *ConnectorInsertRequest) URL() url.URL {
 	return r.api.GetEndpointURL(path)
 }
 
-func (r *ConnectorInsertRequest) Do() (ConnectorInsertResponseBody, error) {
+func (r *ConnectorInsertRequest) Do() (*ConnectorInsertResponseBody, error) {
 	// Create http request
 	req, err := r.api.NewRequest(nil, r.Method(), r.URL(), r.RequestBody())
 	if err != nil {
-		return r.NewResponseBody(), err
+		return r.ResponseBody(), err
 	}
 
 	// Process query parameters
 	err = AddQueryParamsToRequest(r.queryParams, req, true)
 	if err != nil {
-		return r.NewResponseBody(), err
+		return r.ResponseBody(), err
 	}
 
-	responseBody := r.NewResponseBody()
+	responseBody := r.ResponseBody()
 	_, err = r.api.Do(req, responseBody)
 	return responseBody, err
 }
 
-func (r *ConnectorInsertRequest) NewResponseBody() ConnectorInsertResponseBody {
-	return struct{}{}
+func (s *ConnectorService) NewInsertResponseBody() *ConnectorInsertResponseBody {
+	return &ConnectorInsertResponseBody{}
 }
 
 func (r *ConnectorInsertRequest) QueryParams() *ConnectorInsertQueryParams {
@@ -91,4 +98,7 @@ func (s *ConnectorService) NewInsertRequestBody() ConnectorInsertRequestBody {
 
 type ConnectorInsertRequestBody interface{}
 
-type ConnectorInsertResponseBody interface{}
+// {"results":{"FiEntryPar":{"UnId":"4","EnNo":"54605"}}}
+type ConnectorInsertResponseBody struct {
+	Results json.RawMessage `json:"results"`
+}

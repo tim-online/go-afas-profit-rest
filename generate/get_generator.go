@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"go/format"
 	"io"
 	"os"
 	"strings"
@@ -49,6 +48,13 @@ func (g GetGenerator) Generate(connectors afas.GetConnectors) (map[string]io.Rea
 		filename := fmt.Sprintf("%s_list.go", filenameBase)
 		files[filename] = r
 
+		r, err = g.GenerateTestListCode(structs[0])
+		if err != nil {
+			return files, err
+		}
+		filename = fmt.Sprintf("%s_list_test.go", filenameBase)
+		files[filename] = r
+
 		r, err = g.GenerateServiceCode(structs[0])
 		if err != nil {
 			return files, err
@@ -74,16 +80,7 @@ func (g GetGenerator) GenerateTypesCode(structs []GetConnectorStruct) (io.Reader
 		return buf, err
 	}
 	err = tmpl.Execute(buf, structs)
-	if err != nil {
-		return buf, err
-	}
-
-	b, err := format.Source(buf.Bytes())
-	if err != nil {
-		return buf, err
-	}
-
-	return bytes.NewBuffer(b), nil
+	return buf, err
 }
 
 func (g GetGenerator) GenerateListCode(st GetConnectorStruct) (io.Reader, error) {
@@ -93,16 +90,17 @@ func (g GetGenerator) GenerateListCode(st GetConnectorStruct) (io.Reader, error)
 		return buf, err
 	}
 	err = tmpl.Execute(buf, st)
+	return buf, err
+}
+
+func (g GetGenerator) GenerateTestListCode(st GetConnectorStruct) (io.Reader, error) {
+	buf := bytes.NewBuffer([]byte{})
+	tmpl, err := template.ParseFiles("generate/get_connector_list_test.go.tmpl")
 	if err != nil {
 		return buf, err
 	}
-
-	b, err := format.Source(buf.Bytes())
-	if err != nil {
-		return buf, err
-	}
-
-	return bytes.NewBuffer(b), nil
+	err = tmpl.Execute(buf, st)
+	return buf, err
 }
 
 func (g GetGenerator) GenerateServiceCode(st GetConnectorStruct) (io.Reader, error) {
@@ -112,16 +110,7 @@ func (g GetGenerator) GenerateServiceCode(st GetConnectorStruct) (io.Reader, err
 		return buf, err
 	}
 	err = tmpl.Execute(buf, st)
-	if err != nil {
-		return buf, err
-	}
-
-	b, err := format.Source(buf.Bytes())
-	if err != nil {
-		return buf, err
-	}
-
-	return bytes.NewBuffer(b), nil
+	return buf, err
 }
 
 func generateGetConnectorResponseStructs(d afas.MetaDescribeGetConnectorResponseBody) ([]GetConnectorStruct, error) {
@@ -145,6 +134,7 @@ func generateGetConnectorResponseStruct(d afas.MetaDescribeGetConnectorResponseB
 	return GetConnectorStruct{
 		Comment:  comment,
 		Name:     name,
+		ID:       d.Name,
 		Variable: variable,
 		Fields:   fields,
 	}, nil
@@ -170,7 +160,7 @@ func generateGetConnectorStructFields(d afas.MetaDescribeGetConnectorResponseBod
 			return GetConnectorStructFields{}, errors.Errorf("Unkown datatype: %s", f.DataType)
 		}
 
-		jsonName := f.FieldID
+		jsonName := f.ID
 
 		// json tags
 		tags := fmt.Sprintf(`json:"%s"`, jsonName)
@@ -194,6 +184,7 @@ func generateGetConnectorStructFields(d afas.MetaDescribeGetConnectorResponseBod
 type GetConnectorStruct struct {
 	Comment  string
 	Name     string
+	ID       string
 	Variable string
 	Fields   GetConnectorStructFields
 }

@@ -115,7 +115,7 @@ type UpdateConnectorField struct {
 	Length         int    `json:"length"`
 	Decimals       int    `json:"decimals"`
 	DecimalFieldID string `json:"decimalFieldId"`
-	Notzero        bool   `json:"notzero"`
+	NotZero        bool   `json:"notzero"`
 	ControlType    int    `json:"controlType"`
 	Values         []struct {
 		ID          string `json:"id"`

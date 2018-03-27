@@ -25,7 +25,7 @@ func (s *{{.Name}}Service) NewListRequest() {{.Name}}ListRequest {
 	rows := []{{.Name}}{}
 	r.ResponseBody().Rows = &rows
 
-	r.URLParams().ConnectorID = "{{.Name}}"
+	r.URLParams().ConnectorID = "{{.ID}}"
 	return {{.Name}}ListRequest{ConnectorListRequest: r}
 }
 

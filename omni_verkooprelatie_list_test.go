@@ -25,5 +25,4 @@ func TestOMNIVerkooprelatieList(t *testing.T) {
 		log.Println(o.NummerOrgPers)
 		log.Println(o.OrganisatiePersoonCode)
 	}
-	log.Fatal("TEST")
 }

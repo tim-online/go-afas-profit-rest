@@ -4,12 +4,13 @@ package afas
 
 import (
 	"encoding/json"
-	"time"
 
 	"github.com/cockroachdb/apd"
+    "github.com/aodin/date"
+    "github.com/cydev/zero"
 )
 
-{{range .}}
+{{range .Objects}}
 
 // {{.Comment}}
 type {{.Name}} struct {
@@ -18,6 +19,11 @@ type {{.Name}} struct {
 }
 
 func ({{.Variable}} {{.Name}}) MarshalJSON() ([]byte, error) {
+    // If struct is empty: do nothing
+    if zero.IsZero({{.Variable}}) {
+        return []byte("null"), nil
+    }
+
 	type alias {{.Name}}
 
 	// type to json
@@ -44,26 +50,45 @@ func ({{.Variable}} {{.Name}}) MarshalJSON() ([]byte, error) {
 
 		for _, f := range jsonObjects {
 			if k == f {
-				// value is an object
+                // skip empty objects
+                // @TODO: move this logic to an Objects struct aliasing
+                // map[string]interface{}
+				if v == nil || zero.IsZero(v) {
+					continue
+				}
+
+				// value is an object and not zero
 				objects[k] = v
 			}
 		}
 	}
 
-	requestBody := map[string]interface{}{
-		"{{.Name}}": map[string]interface{}{
-			"Element": map[string]interface{}{
-				"@DbId":   {{.Variable}}.DBID(),
-				"Fields":  fields,
-				"Objects": objects,
-			},
-		},
+	type Element struct {
+		DBID    string                 `json:"@DbId,omitempty"`
+		Fields  map[string]interface{} `json:"Fields,omitempty"`
+		Objects map[string]interface{} `json:"Objects,omitempty"`
 	}
 
-	return json.Marshal(requestBody)
+	type Elements struct {
+        Element []Element `json:"Element"`
+    }
+
+	structure := Elements{
+        []Element{
+            Element{
+                {{- if .DBIDField}}
+                DBID:    {{.Variable}}.DBID(),
+                {{- end}}
+                Fields:  fields,
+                Objects: objects,
+            },
+        },
+	}
+
+	return json.Marshal(structure)
 }
 
-{{if .DBIDField}}
+{{- if .DBIDField}}
 func (k {{.Name}}) DBIDField() string {
 	return "{{.DBIDField}}"
 }
@@ -71,7 +96,7 @@ func (k {{.Name}}) DBIDField() string {
 func (k {{.Name}}) DBID() string {
 	return {{.Variable}}.{{.DBIDField}}
 }
-{{end}}
+{{- end}}
 
 func (k {{.Name}}) JSONFields() []string {
 	return []string{
