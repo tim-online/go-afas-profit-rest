@@ -5,23 +5,63 @@ package afas
 import (
 	"encoding/json"
 
-	"github.com/cockroachdb/apd"
+	// "github.com/cockroachdb/apd"
     "github.com/aodin/date"
     "github.com/cydev/zero"
 )
 
 {{range .Objects}}
 
+{{if .Plural}}
+// {{.Plural}}
+type {{.Plural}} []{{.Name}}
+
+func ({{.Variable}} {{.Plural}}) MarshalJSON() ([]byte, error) {
+	// If struct is empty: do nothing
+	if zero.IsZero({{.Variable}}) {
+		return []byte("null"), nil
+	}
+
+	structure := Elements{}
+	for _, f := range {{.Variable}} {
+		el, err := f.ToElement()
+		if err != nil {
+			return []byte{}, err
+		}
+
+		if zero.IsZero(el) {
+			continue
+		}
+
+		structure = append(structure, el)
+	}
+
+	if len(structure) == 0 {
+		return []byte("null"), nil
+	}
+
+	return json.Marshal(structure)
+}
+{{end}}
+
 // {{.Comment}}
 type {{.Name}} struct {
-    {{range .Fields}} {{.Name}} {{.Type}} {{if .Tags}}`{{.Tags}}`{{end}} // {{.Comment}}
+    {{range .Fields}} {{.Name}} {{.Type}} `json:"{{.JSONName}}{{.Tags}}"` // {{.Comment}}
     {{end}}
 }
 
 func ({{.Variable}} {{.Name}}) MarshalJSON() ([]byte, error) {
+	el, err := {{.Variable}}.ToElement()
+	if err != nil {
+		return []byte{}, err
+	}
+	return json.Marshal(el)
+}
+
+func ({{.Variable}} {{.Name}}) ToElement() (Element, error) {
     // If struct is empty: do nothing
     if zero.IsZero({{.Variable}}) {
-        return []byte("null"), nil
+        return Element{}, nil
     }
 
 	type alias {{.Name}}
@@ -29,7 +69,7 @@ func ({{.Variable}} {{.Name}}) MarshalJSON() ([]byte, error) {
 	// type to json
 	b, err := json.Marshal(alias({{.Variable}}))
 	if err != nil {
-		return b, err
+		return Element{}, err
 	}
 
 	// json to map with preservation of json struct tags
@@ -63,49 +103,48 @@ func ({{.Variable}} {{.Name}}) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	type Element struct {
-		DBID    string                 `json:"@DbId,omitempty"`
-		Fields  map[string]interface{} `json:"Fields,omitempty"`
-		Objects map[string]interface{} `json:"Objects,omitempty"`
-	}
-
-	type Elements struct {
-        Element []Element `json:"Element"`
-    }
-
-	structure := Elements{
-        []Element{
-            Element{
-                {{- if .DBIDField}}
-                DBID:    {{.Variable}}.DBID(),
-                {{- end}}
-                Fields:  fields,
-                Objects: objects,
-            },
-        },
-	}
-
-	return json.Marshal(structure)
+	return Element{
+		Fields:  fields,
+		Objects: objects,
+	}, nil
 }
 
 {{- if .DBIDField}}
-func (k {{.Name}}) DBIDField() string {
+func ({{.Variable}} {{.Name}}) DBIDField() string {
 	return "{{.DBIDField}}"
 }
 
-func (k {{.Name}}) DBID() string {
+func ({{.Variable}} {{.Name}}) DBID() string {
 	return {{.Variable}}.{{.DBIDField}}
 }
 {{- end}}
 
-func (k {{.Name}}) JSONFields() []string {
+func ({{.Variable}} *{{.Name}}) UnmarshalJSON(b []byte) error {
+    {{$variable := .Variable}}
+	in := struct {
+        {{range .Fields}} {{.Name}} {{.Type}} `json:"{{.Tags}}"` // {{.Comment}}
+        {{end}}
+	}{
+        {{range .Fields}} {{.Name}}: {{$variable}}.{{.Name}},
+        {{end}}
+	}
+
+	err := json.Unmarshal(b, &in)
+	if err != nil {
+		return err
+	}
+	*{{.Variable}} = {{.Name}}(in)
+	return nil
+}
+
+func ({{.Variable}} {{.Name}}) JSONFields() []string {
 	return []string{
-        {{range .Fields}}"{{.JSONName}}",
+        {{range .Fields}}{{if .IsObject}}{{else}}"{{.JSONName}}",{{end}}
         {{end}}
 	}
 }
 
-func (k {{.Name}}) JSONObjects() []string {
+func ({{.Variable}} {{.Name}}) JSONObjects() []string {
 	return []string{
         {{range .Objects}}"{{.}}",
         {{end}}

@@ -5,8 +5,8 @@ package afas
 import (
 	"encoding/json"
 
+	// "github.com/cockroachdb/apd"
 	"github.com/aodin/date"
-	"github.com/cockroachdb/apd"
 	"github.com/cydev/zero"
 )
 
@@ -22,16 +22,16 @@ type KnSalesRelationOrg struct {
 	Betalingsvoorwaarde                   string         `json:"PaCd,omitempty"`                              // Betalingsvoorwaarde
 	Vertegenwoordiger                     string         `json:"VeId,omitempty"`                              // Vertegenwoordiger
 	Taal                                  string         `json:"LgId,omitempty"`                              // Taal
-	Valuta                                string         `json:"CuId"`                                        // Valuta
+	Valuta                                string         `json:"CuId,omitempty"`                              // Valuta
 	AfwijkendeAanmaningsset               int            `json:"DsId,omitempty"`                              // Afwijkende aanmaningsset
 	Verantwoordelijke                     string         `json:"EmId,omitempty"`                              // Verantwoordelijke
 	BtwPlicht                             string         `json:"VaDu,omitempty"`                              // Btw-plicht
 	Profiel                               string         `json:"PfId,omitempty"`                              // Profiel
-	Regelkorting                          *apd.Decimal   `json:"PrLi,omitempty"`                              // % Regelkorting
-	Factuurkorting                        *apd.Decimal   `json:"PrFc,omitempty"`                              // Factuurkorting (%)
-	Kredietbeperking                      *apd.Decimal   `json:"ClPc,omitempty"`                              // Kredietbeperking (%)
-	Betalingskorting                      *apd.Decimal   `json:"PrPt,omitempty"`                              // Betalingskorting (%)
-	Kredietlimiet                         *apd.Decimal   `json:"Krli,omitempty"`                              // Kredietlimiet
+	Regelkorting                          float64        `json:"PrLi,omitempty"`                              // % Regelkorting
+	Factuurkorting                        float64        `json:"PrFc,omitempty"`                              // Factuurkorting (%)
+	Kredietbeperking                      float64        `json:"ClPc,omitempty"`                              // Kredietbeperking (%)
+	Betalingskorting                      float64        `json:"PrPt,omitempty"`                              // Betalingskorting (%)
+	Kredietlimiet                         float64        `json:"Krli,omitempty"`                              // Kredietlimiet
 	FacturerenAan                         string         `json:"FaTo,omitempty"`                              // Factureren aan
 	Vervoerder                            string         `json:"TrPt,omitempty"`                              // Vervoerder
 	PrioriteitLevering                    int            `json:"PrDl,omitempty"`                              // Prioriteit levering
@@ -52,9 +52,9 @@ type KnSalesRelationOrg struct {
 	FactuurGeheelVerdichten               bool           `json:"CITo,omitempty"`                              // Factuur geheel verdichten
 	TekstBijGeheelVerdichten              string         `json:"TxTc,omitempty"`                              // Tekst bij geheel verdichten
 	StriktMaximum                         bool           `json:"StMa,omitempty"`                              // Strikt maximum
-	MaximumFactuurbedrag                  *apd.Decimal   `json:"MaIn,omitempty"`                              // Maximum factuurbedrag
+	MaximumFactuurbedrag                  float64        `json:"MaIn,omitempty"`                              // Maximum factuurbedrag
 	StriktMinimum                         bool           `json:"StMi,omitempty"`                              // Strikt minimum
-	Minimumfactuurbedrag                  *apd.Decimal   `json:"MiIn,omitempty"`                              // Minimumfactuurbedrag
+	Minimumfactuurbedrag                  float64        `json:"MiIn,omitempty"`                              // Minimumfactuurbedrag
 	Afrondingsmethode                     string         `json:"RoOf,omitempty"`                              // Afrondingsmethode
 	Declarant                             string         `json:"DeId,omitempty"`                              // Declarant
 	Incassospecificatie                   bool           `json:"PaSp,omitempty"`                              // Incassospecificatie
@@ -70,9 +70,9 @@ type KnSalesRelationOrg struct {
 	Verzamelrekening                      string         `json:"ColA,omitempty"`                              // Verzamelrekening
 	KlantSinds                            *date.Date     `json:"CsDa,omitempty"`                              // Klant sinds
 	AangebrachtDoor                       string         `json:"BcBy,omitempty"`                              // Aangebracht door
-	Leveringsconditie                     string         `json:"DeCo"`                                        // Leveringsconditie
+	Leveringsconditie                     string         `json:"DeCo,omitempty"`                              // Leveringsconditie
 	VoorkeurContact                       int            `json:"CtI1,omitempty"`                              // Voorkeur contact
-	VoorkeurVerstrekkingswijze            string         `json:"InPv"`                                        // Voorkeur verstrekkingswijze
+	VoorkeurVerstrekkingswijze            string         `json:"InPv,omitempty"`                              // Voorkeur verstrekkingswijze
 	Ordersortering                        string         `json:"SoId,omitempty"`                              // Ordersortering
 	TypeBarcode                           string         `json:"VaBc,omitempty"`                              // Type barcode
 	Barcode                               string         `json:"BaCo,omitempty"`                              // Barcode
@@ -100,9 +100,17 @@ type KnSalesRelationOrg struct {
 }
 
 func (k KnSalesRelationOrg) MarshalJSON() ([]byte, error) {
+	el, err := k.ToElement()
+	if err != nil {
+		return []byte{}, err
+	}
+	return json.Marshal(el)
+}
+
+func (k KnSalesRelationOrg) ToElement() (Element, error) {
 	// If struct is empty: do nothing
 	if zero.IsZero(k) {
-		return []byte("null"), nil
+		return Element{}, nil
 	}
 
 	type alias KnSalesRelationOrg
@@ -110,7 +118,7 @@ func (k KnSalesRelationOrg) MarshalJSON() ([]byte, error) {
 	// type to json
 	b, err := json.Marshal(alias(k))
 	if err != nil {
-		return b, err
+		return Element{}, err
 	}
 
 	// json to map with preservation of json struct tags
@@ -144,27 +152,10 @@ func (k KnSalesRelationOrg) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	type Element struct {
-		DBID    string                 `json:"@DbId,omitempty"`
-		Fields  map[string]interface{} `json:"Fields,omitempty"`
-		Objects map[string]interface{} `json:"Objects,omitempty"`
-	}
-
-	type Elements struct {
-		Element []Element `json:"Element"`
-	}
-
-	structure := Elements{
-		[]Element{
-			Element{
-				DBID:    k.DBID(),
-				Fields:  fields,
-				Objects: objects,
-			},
-		},
-	}
-
-	return json.Marshal(structure)
+	return Element{
+		Fields:  fields,
+		Objects: objects,
+	}, nil
 }
 func (k KnSalesRelationOrg) DBIDField() string {
 	return "NummerDebiteur"
@@ -172,6 +163,189 @@ func (k KnSalesRelationOrg) DBIDField() string {
 
 func (k KnSalesRelationOrg) DBID() string {
 	return k.NummerDebiteur
+}
+
+func (k *KnSalesRelationOrg) UnmarshalJSON(b []byte) error {
+
+	in := struct {
+		NummerDebiteur                        string         `json:",omitempty"` // Nummer debiteur
+		VoorkeurIbanNummer                    string         `json:",omitempty"` // Voorkeur Iban nummer
+		VoorkeurBankgironummer                string         `json:",omitempty"` // Voorkeur bank-/gironummer
+		VoorkeurBankgironummerLandCode        string         `json:",omitempty"` // Voorkeur bank-/gironummer land code
+		IsDebiteur                            bool           `json:",omitempty"` // Is debiteur
+		VoorkeurTegenrekening                 string         `json:",omitempty"` // Voorkeur tegenrekening
+		BtwNummer                             string         `json:",omitempty"` // Btw-nummer
+		Betalingsvoorwaarde                   string         `json:",omitempty"` // Betalingsvoorwaarde
+		Vertegenwoordiger                     string         `json:",omitempty"` // Vertegenwoordiger
+		Taal                                  string         `json:",omitempty"` // Taal
+		Valuta                                string         `json:",omitempty"` // Valuta
+		AfwijkendeAanmaningsset               int            `json:",omitempty"` // Afwijkende aanmaningsset
+		Verantwoordelijke                     string         `json:",omitempty"` // Verantwoordelijke
+		BtwPlicht                             string         `json:",omitempty"` // Btw-plicht
+		Profiel                               string         `json:",omitempty"` // Profiel
+		Regelkorting                          float64        `json:",omitempty"` // % Regelkorting
+		Factuurkorting                        float64        `json:",omitempty"` // Factuurkorting (%)
+		Kredietbeperking                      float64        `json:",omitempty"` // Kredietbeperking (%)
+		Betalingskorting                      float64        `json:",omitempty"` // Betalingskorting (%)
+		Kredietlimiet                         float64        `json:",omitempty"` // Kredietlimiet
+		FacturerenAan                         string         `json:",omitempty"` // Factureren aan
+		Vervoerder                            string         `json:",omitempty"` // Vervoerder
+		PrioriteitLevering                    int            `json:",omitempty"` // Prioriteit levering
+		PrijzenVan                            string         `json:",omitempty"` // Prijzen van
+		VoorkeurPrijslijst                    string         `json:",omitempty"` // Voorkeur prijslijst
+		VoorkeurMagazijn                      string         `json:",omitempty"` // Voorkeur magazijn
+		GeblokkeerdVoorLevering               bool           `json:",omitempty"` // Geblokkeerd voor levering
+		VolledigBlokkerenNietMeerZichtbaar    bool           `json:",omitempty"` // Volledig blokkeren, niet meer zichtbaar
+		Hoofddeclarant                        string         `json:",omitempty"` // Hoofddeclarant
+		AfwijkendeBtwTariefgroep              bool           `json:",omitempty"` // Afwijkende btw-tariefgroep
+		AanmaningVerzenden                    bool           `json:",omitempty"` // Aanmaning verzenden
+		CodeGroepsadministratie               string         `json:",omitempty"` // Code groepsadministratie
+		StatusBewaking                        string         `json:",omitempty"` // Status bewaking
+		Kortingsgroep                         string         `json:",omitempty"` // Kortingsgroep
+		Nettoprijs                            bool           `json:",omitempty"` // Nettoprijs
+		PrijsInclBtw                          bool           `json:",omitempty"` // Prijs incl. btw
+		Factuurtekst                          string         `json:",omitempty"` // Factuurtekst
+		FactuurGeheelVerdichten               bool           `json:",omitempty"` // Factuur geheel verdichten
+		TekstBijGeheelVerdichten              string         `json:",omitempty"` // Tekst bij geheel verdichten
+		StriktMaximum                         bool           `json:",omitempty"` // Strikt maximum
+		MaximumFactuurbedrag                  float64        `json:",omitempty"` // Maximum factuurbedrag
+		StriktMinimum                         bool           `json:",omitempty"` // Strikt minimum
+		Minimumfactuurbedrag                  float64        `json:",omitempty"` // Minimumfactuurbedrag
+		Afrondingsmethode                     string         `json:",omitempty"` // Afrondingsmethode
+		Declarant                             string         `json:",omitempty"` // Declarant
+		Incassospecificatie                   bool           `json:",omitempty"` // Incassospecificatie
+		AutomatischIncasseren                 bool           `json:",omitempty"` // Automatisch incasseren
+		Verdichten                            bool           `json:",omitempty"` // Verdichten
+		EenmaligeIncassomachtigingVereist     bool           `json:",omitempty"` // Eenmalige incassomachtiging vereist
+		WaarschuwingBijOrder                  bool           `json:",omitempty"` // Waarschuwing bij order
+		TekstWaarschuwing                     string         `json:",omitempty"` // Tekst waarschuwing
+		CBSTypen                              string         `json:",omitempty"` // CBS-typen
+		Opmerking                             []byte         `json:",omitempty"` // Opmerking
+		Contactpersoon                        int            `json:",omitempty"` // Contactpersoon
+		ExtraContactpersoon                   int            `json:",omitempty"` // Extra contactpersoon
+		Verzamelrekening                      string         `json:",omitempty"` // Verzamelrekening
+		KlantSinds                            *date.Date     `json:",omitempty"` // Klant sinds
+		AangebrachtDoor                       string         `json:",omitempty"` // Aangebracht door
+		Leveringsconditie                     string         `json:",omitempty"` // Leveringsconditie
+		VoorkeurContact                       int            `json:",omitempty"` // Voorkeur contact
+		VoorkeurVerstrekkingswijze            string         `json:",omitempty"` // Voorkeur verstrekkingswijze
+		Ordersortering                        string         `json:",omitempty"` // Ordersortering
+		TypeBarcode                           string         `json:",omitempty"` // Type barcode
+		Barcode                               string         `json:",omitempty"` // Barcode
+		AdresseringEDIPakbonConformEDIFactuur bool           `json:",omitempty"` // Adressering EDI-pakbon conform EDI-factuur
+		VaA1                                  string         `json:",omitempty"` // VaA1
+		VaA2                                  string         `json:",omitempty"` // VaA2
+		VaA3                                  string         `json:",omitempty"` // VaA3
+		VaA4                                  string         `json:",omitempty"` // VaA4
+		VaA5                                  string         `json:",omitempty"` // VaA5
+		Wachtwoord                            string         `json:",omitempty"` // Wachtwoord
+		Activeringscode                       string         `json:",omitempty"` // Activeringscode
+		Accounttype                           string         `json:",omitempty"` // Accounttype
+		VerwerkingOrder                       string         `json:",omitempty"` // Verwerking order
+		Assortiment                           string         `json:",omitempty"` // Assortiment
+		AfwijkenAssortimentToestaan           bool           `json:",omitempty"` // Afwijken assortiment toestaan
+		StudentNummer                         string         `json:",omitempty"` // Student nummer
+		IncassowijzeSEPA                      string         `json:",omitempty"` // Incassowijze SEPA
+		BedrijfsIdEVerbinding                 string         `json:",omitempty"` // Bedrijfs-Id eVerbinding
+		TypeVerkooprelatie                    string         `json:",omitempty"` // Type verkooprelatie
+		VerwijderingsbijdrageToepassen        bool           `json:",omitempty"` // Verwijderingsbijdrage toepassen
+		EenmaligeDebiteur                     bool           `json:",omitempty"` // Eenmalige debiteur?
+		Machtiging                            bool           `json:",omitempty"` // Machtiging?
+		KnOrganisation                        KnOrganisation `json:""`           // KnOrganisation
+
+	}{
+		NummerDebiteur:                     k.NummerDebiteur,
+		VoorkeurIbanNummer:                 k.VoorkeurIbanNummer,
+		VoorkeurBankgironummer:             k.VoorkeurBankgironummer,
+		VoorkeurBankgironummerLandCode:     k.VoorkeurBankgironummerLandCode,
+		IsDebiteur:                         k.IsDebiteur,
+		VoorkeurTegenrekening:              k.VoorkeurTegenrekening,
+		BtwNummer:                          k.BtwNummer,
+		Betalingsvoorwaarde:                k.Betalingsvoorwaarde,
+		Vertegenwoordiger:                  k.Vertegenwoordiger,
+		Taal:                               k.Taal,
+		Valuta:                             k.Valuta,
+		AfwijkendeAanmaningsset:            k.AfwijkendeAanmaningsset,
+		Verantwoordelijke:                  k.Verantwoordelijke,
+		BtwPlicht:                          k.BtwPlicht,
+		Profiel:                            k.Profiel,
+		Regelkorting:                       k.Regelkorting,
+		Factuurkorting:                     k.Factuurkorting,
+		Kredietbeperking:                   k.Kredietbeperking,
+		Betalingskorting:                   k.Betalingskorting,
+		Kredietlimiet:                      k.Kredietlimiet,
+		FacturerenAan:                      k.FacturerenAan,
+		Vervoerder:                         k.Vervoerder,
+		PrioriteitLevering:                 k.PrioriteitLevering,
+		PrijzenVan:                         k.PrijzenVan,
+		VoorkeurPrijslijst:                 k.VoorkeurPrijslijst,
+		VoorkeurMagazijn:                   k.VoorkeurMagazijn,
+		GeblokkeerdVoorLevering:            k.GeblokkeerdVoorLevering,
+		VolledigBlokkerenNietMeerZichtbaar: k.VolledigBlokkerenNietMeerZichtbaar,
+		Hoofddeclarant:                     k.Hoofddeclarant,
+		AfwijkendeBtwTariefgroep:           k.AfwijkendeBtwTariefgroep,
+		AanmaningVerzenden:                 k.AanmaningVerzenden,
+		CodeGroepsadministratie:            k.CodeGroepsadministratie,
+		StatusBewaking:                     k.StatusBewaking,
+		Kortingsgroep:                      k.Kortingsgroep,
+		Nettoprijs:                         k.Nettoprijs,
+		PrijsInclBtw:                       k.PrijsInclBtw,
+		Factuurtekst:                       k.Factuurtekst,
+		FactuurGeheelVerdichten:            k.FactuurGeheelVerdichten,
+		TekstBijGeheelVerdichten:           k.TekstBijGeheelVerdichten,
+		StriktMaximum:                      k.StriktMaximum,
+		MaximumFactuurbedrag:               k.MaximumFactuurbedrag,
+		StriktMinimum:                      k.StriktMinimum,
+		Minimumfactuurbedrag:               k.Minimumfactuurbedrag,
+		Afrondingsmethode:                  k.Afrondingsmethode,
+		Declarant:                          k.Declarant,
+		Incassospecificatie:                k.Incassospecificatie,
+		AutomatischIncasseren:              k.AutomatischIncasseren,
+		Verdichten:                         k.Verdichten,
+		EenmaligeIncassomachtigingVereist:  k.EenmaligeIncassomachtigingVereist,
+		WaarschuwingBijOrder:               k.WaarschuwingBijOrder,
+		TekstWaarschuwing:                  k.TekstWaarschuwing,
+		CBSTypen:                           k.CBSTypen,
+		Opmerking:                          k.Opmerking,
+		Contactpersoon:                     k.Contactpersoon,
+		ExtraContactpersoon:                k.ExtraContactpersoon,
+		Verzamelrekening:                   k.Verzamelrekening,
+		KlantSinds:                         k.KlantSinds,
+		AangebrachtDoor:                    k.AangebrachtDoor,
+		Leveringsconditie:                  k.Leveringsconditie,
+		VoorkeurContact:                    k.VoorkeurContact,
+		VoorkeurVerstrekkingswijze:         k.VoorkeurVerstrekkingswijze,
+		Ordersortering:                     k.Ordersortering,
+		TypeBarcode:                        k.TypeBarcode,
+		Barcode:                            k.Barcode,
+		AdresseringEDIPakbonConformEDIFactuur: k.AdresseringEDIPakbonConformEDIFactuur,
+		VaA1:                           k.VaA1,
+		VaA2:                           k.VaA2,
+		VaA3:                           k.VaA3,
+		VaA4:                           k.VaA4,
+		VaA5:                           k.VaA5,
+		Wachtwoord:                     k.Wachtwoord,
+		Activeringscode:                k.Activeringscode,
+		Accounttype:                    k.Accounttype,
+		VerwerkingOrder:                k.VerwerkingOrder,
+		Assortiment:                    k.Assortiment,
+		AfwijkenAssortimentToestaan:    k.AfwijkenAssortimentToestaan,
+		StudentNummer:                  k.StudentNummer,
+		IncassowijzeSEPA:               k.IncassowijzeSEPA,
+		BedrijfsIdEVerbinding:          k.BedrijfsIdEVerbinding,
+		TypeVerkooprelatie:             k.TypeVerkooprelatie,
+		VerwijderingsbijdrageToepassen: k.VerwijderingsbijdrageToepassen,
+		EenmaligeDebiteur:              k.EenmaligeDebiteur,
+		Machtiging:                     k.Machtiging,
+		KnOrganisation:                 k.KnOrganisation,
+	}
+
+	err := json.Unmarshal(b, &in)
+	if err != nil {
+		return err
+	}
+	*k = KnSalesRelationOrg(in)
+	return nil
 }
 
 func (k KnSalesRelationOrg) JSONFields() []string {
@@ -259,7 +433,6 @@ func (k KnSalesRelationOrg) JSONFields() []string {
 		"ReCo",
 		"U36AC2FE34594A8F2D14DB88F867DEF52",
 		"U47C81A5D426695598163F6B1959DEEB1",
-		"",
 	}
 }
 
@@ -274,10 +447,10 @@ type KnOrganisation struct {
 	PostadresIsAdres         bool              `json:"PadAdr"`               // Postadres is adres
 	Autonummering            bool              `json:"AutoNum"`              // Autonummering
 	OrganisatieVergelijkenOp string            `json:"MatchOga"`             // Organisatie vergelijken op
-	Organisatiepersoonintern int               `json:"BcId"`                 // Organisatie/persoon (intern)
-	Nummer                   string            `json:"BcCo"`                 // Nummer
+	Organisatiepersoonintern int               `json:"BcId,omitempty"`       // Organisatie/persoon (intern)
+	Nummer                   string            `json:"BcCo,omitempty"`       // Nummer
 	Zoeknaam                 string            `json:"SeNm,omitempty"`       // Zoeknaam
-	Naam                     string            `json:"Nm"`                   // Naam
+	Naam                     string            `json:"Nm,omitempty"`         // Naam
 	Rechtsvorm               string            `json:"ViLe,omitempty"`       // Rechtsvorm
 	Branche                  string            `json:"ViLb,omitempty"`       // Branche
 	KvKNummer                string            `json:"CcNr,omitempty"`       // KvK-nummer
@@ -312,9 +485,17 @@ type KnOrganisation struct {
 }
 
 func (k KnOrganisation) MarshalJSON() ([]byte, error) {
+	el, err := k.ToElement()
+	if err != nil {
+		return []byte{}, err
+	}
+	return json.Marshal(el)
+}
+
+func (k KnOrganisation) ToElement() (Element, error) {
 	// If struct is empty: do nothing
 	if zero.IsZero(k) {
-		return []byte("null"), nil
+		return Element{}, nil
 	}
 
 	type alias KnOrganisation
@@ -322,7 +503,7 @@ func (k KnOrganisation) MarshalJSON() ([]byte, error) {
 	// type to json
 	b, err := json.Marshal(alias(k))
 	if err != nil {
-		return b, err
+		return Element{}, err
 	}
 
 	// json to map with preservation of json struct tags
@@ -356,26 +537,99 @@ func (k KnOrganisation) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	type Element struct {
-		DBID    string                 `json:"@DbId,omitempty"`
-		Fields  map[string]interface{} `json:"Fields,omitempty"`
-		Objects map[string]interface{} `json:"Objects,omitempty"`
+	return Element{
+		Fields:  fields,
+		Objects: objects,
+	}, nil
+}
+
+func (k *KnOrganisation) UnmarshalJSON(b []byte) error {
+
+	in := struct {
+		PostadresIsAdres         bool              `json:""`           // Postadres is adres
+		Autonummering            bool              `json:""`           // Autonummering
+		OrganisatieVergelijkenOp string            `json:""`           // Organisatie vergelijken op
+		Organisatiepersoonintern int               `json:",omitempty"` // Organisatie/persoon (intern)
+		Nummer                   string            `json:",omitempty"` // Nummer
+		Zoeknaam                 string            `json:",omitempty"` // Zoeknaam
+		Naam                     string            `json:",omitempty"` // Naam
+		Rechtsvorm               string            `json:",omitempty"` // Rechtsvorm
+		Branche                  string            `json:",omitempty"` // Branche
+		KvKNummer                string            `json:",omitempty"` // KvK-nummer
+		DatumKvK                 *date.Date        `json:",omitempty"` // Datum KvK
+		Naamstatutair            string            `json:",omitempty"` // Naam (statutair)
+		Vestigingstatutair       string            `json:",omitempty"` // Vestiging (statutair)
+		Titelaanhef              string            `json:",omitempty"` // Titel/aanhef
+		Briefaanhef              string            `json:",omitempty"` // Briefaanhef
+		OrganisatorischeEenheid  string            `json:",omitempty"` // Organisatorische eenheid
+		TelefoonnrWerk           string            `json:",omitempty"` // Telefoonnr. werk
+		FaxWerk                  string            `json:",omitempty"` // Fax werk
+		MobielWerk               string            `json:",omitempty"` // Mobiel werk
+		EMailWerk                string            `json:",omitempty"` // E-mail werk
+		Website                  string            `json:",omitempty"` // Website
+		Correspondentie          bool              `json:",omitempty"` // Correspondentie
+		Voorkeursmedium          string            `json:",omitempty"` // Voorkeursmedium
+		Opmerking                []byte            `json:",omitempty"` // Opmerking
+		Fiscaalnummer            string            `json:",omitempty"` // Fiscaalnummer
+		Status                   string            `json:",omitempty"` // Status
+		SocialeNetwerken         string            `json:",omitempty"` // Sociale netwerken
+		Facebook                 string            `json:",omitempty"` // Facebook
+		LinkedIn                 string            `json:",omitempty"` // LinkedIn
+		Twitter                  string            `json:",omitempty"` // Twitter
+		OnderdeelVanOrganisatie  string            `json:",omitempty"` // Onderdeel van organisatie
+		NaamBestand              string            `json:",omitempty"` // Naam bestand
+		Afbeelding               []byte            `json:",omitempty"` // Afbeelding
+		KnBankAccount            KnBankAccount     `json:""`           // KnBankAccount
+		KnBasicAddressAdr        KnBasicAddressAdr `json:""`           // KnBasicAddressAdr
+		KnBasicAddressPad        KnBasicAddressPad `json:""`           // KnBasicAddressPad
+		KnContact                KnContact         `json:""`           // KnContact
+
+	}{
+		PostadresIsAdres:         k.PostadresIsAdres,
+		Autonummering:            k.Autonummering,
+		OrganisatieVergelijkenOp: k.OrganisatieVergelijkenOp,
+		Organisatiepersoonintern: k.Organisatiepersoonintern,
+		Nummer:                  k.Nummer,
+		Zoeknaam:                k.Zoeknaam,
+		Naam:                    k.Naam,
+		Rechtsvorm:              k.Rechtsvorm,
+		Branche:                 k.Branche,
+		KvKNummer:               k.KvKNummer,
+		DatumKvK:                k.DatumKvK,
+		Naamstatutair:           k.Naamstatutair,
+		Vestigingstatutair:      k.Vestigingstatutair,
+		Titelaanhef:             k.Titelaanhef,
+		Briefaanhef:             k.Briefaanhef,
+		OrganisatorischeEenheid: k.OrganisatorischeEenheid,
+		TelefoonnrWerk:          k.TelefoonnrWerk,
+		FaxWerk:                 k.FaxWerk,
+		MobielWerk:              k.MobielWerk,
+		EMailWerk:               k.EMailWerk,
+		Website:                 k.Website,
+		Correspondentie:         k.Correspondentie,
+		Voorkeursmedium:         k.Voorkeursmedium,
+		Opmerking:               k.Opmerking,
+		Fiscaalnummer:           k.Fiscaalnummer,
+		Status:                  k.Status,
+		SocialeNetwerken:        k.SocialeNetwerken,
+		Facebook:                k.Facebook,
+		LinkedIn:                k.LinkedIn,
+		Twitter:                 k.Twitter,
+		OnderdeelVanOrganisatie: k.OnderdeelVanOrganisatie,
+		NaamBestand:             k.NaamBestand,
+		Afbeelding:              k.Afbeelding,
+		KnBankAccount:           k.KnBankAccount,
+		KnBasicAddressAdr:       k.KnBasicAddressAdr,
+		KnBasicAddressPad:       k.KnBasicAddressPad,
+		KnContact:               k.KnContact,
 	}
 
-	type Elements struct {
-		Element []Element `json:"Element"`
+	err := json.Unmarshal(b, &in)
+	if err != nil {
+		return err
 	}
-
-	structure := Elements{
-		[]Element{
-			Element{
-				Fields:  fields,
-				Objects: objects,
-			},
-		},
-	}
-
-	return json.Marshal(structure)
+	*k = KnOrganisation(in)
+	return nil
 }
 
 func (k KnOrganisation) JSONFields() []string {
@@ -413,10 +667,6 @@ func (k KnOrganisation) JSONFields() []string {
 		"BcPa",
 		"FileName",
 		"FileStream",
-		"",
-		"",
-		"",
-		"",
 	}
 }
 
@@ -431,8 +681,8 @@ func (k KnOrganisation) JSONObjects() []string {
 
 // KnBasicAddressAdr
 type KnBasicAddressAdr struct {
-	Land                                                   string    `json:"CoId"`           // Land
-	Postbusadres                                           bool      `json:"PbAd"`           // Postbusadres
+	Land                                                   string    `json:"CoId,omitempty"` // Land
+	Postbusadres                                           bool      `json:"PbAd,omitempty"` // Postbusadres
 	ToevVoorStraat                                         string    `json:"StAd,omitempty"` // Toev. voor straat
 	Straat                                                 string    `json:"Ad,omitempty"`   // Straat
 	Huisnummer                                             int       `json:"HmNr,omitempty"` // Huisnummer
@@ -446,9 +696,17 @@ type KnBasicAddressAdr struct {
 }
 
 func (k KnBasicAddressAdr) MarshalJSON() ([]byte, error) {
+	el, err := k.ToElement()
+	if err != nil {
+		return []byte{}, err
+	}
+	return json.Marshal(el)
+}
+
+func (k KnBasicAddressAdr) ToElement() (Element, error) {
 	// If struct is empty: do nothing
 	if zero.IsZero(k) {
-		return []byte("null"), nil
+		return Element{}, nil
 	}
 
 	type alias KnBasicAddressAdr
@@ -456,7 +714,7 @@ func (k KnBasicAddressAdr) MarshalJSON() ([]byte, error) {
 	// type to json
 	b, err := json.Marshal(alias(k))
 	if err != nil {
-		return b, err
+		return Element{}, err
 	}
 
 	// json to map with preservation of json struct tags
@@ -490,26 +748,47 @@ func (k KnBasicAddressAdr) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	type Element struct {
-		DBID    string                 `json:"@DbId,omitempty"`
-		Fields  map[string]interface{} `json:"Fields,omitempty"`
-		Objects map[string]interface{} `json:"Objects,omitempty"`
+	return Element{
+		Fields:  fields,
+		Objects: objects,
+	}, nil
+}
+
+func (k *KnBasicAddressAdr) UnmarshalJSON(b []byte) error {
+
+	in := struct {
+		Land                                                   string    `json:",omitempty"` // Land
+		Postbusadres                                           bool      `json:",omitempty"` // Postbusadres
+		ToevVoorStraat                                         string    `json:",omitempty"` // Toev. voor straat
+		Straat                                                 string    `json:",omitempty"` // Straat
+		Huisnummer                                             int       `json:",omitempty"` // Huisnummer
+		ToevAanHuisnr                                          string    `json:",omitempty"` // Toev. aan huisnr.
+		Postcode                                               string    `json:",omitempty"` // Postcode
+		Woonplaats                                             string    `json:",omitempty"` // Woonplaats
+		AdresToevoeging                                        string    `json:",omitempty"` // Adres toevoeging
+		IngangsdatumAdreswijzigingwordtGenegeerdBijEersteDatum date.Date `json:""`           // Ingangsdatum adreswijziging (wordt genegeerd bij eerste datum)
+		ZoekWoonplaatsBijPostcode                              bool      `json:""`           // Zoek woonplaats bij postcode
+
+	}{
+		Land:                                                   k.Land,
+		Postbusadres:                                           k.Postbusadres,
+		ToevVoorStraat:                                         k.ToevVoorStraat,
+		Straat:                                                 k.Straat,
+		Huisnummer:                                             k.Huisnummer,
+		ToevAanHuisnr:                                          k.ToevAanHuisnr,
+		Postcode:                                               k.Postcode,
+		Woonplaats:                                             k.Woonplaats,
+		AdresToevoeging:                                        k.AdresToevoeging,
+		IngangsdatumAdreswijzigingwordtGenegeerdBijEersteDatum: k.IngangsdatumAdreswijzigingwordtGenegeerdBijEersteDatum,
+		ZoekWoonplaatsBijPostcode:                              k.ZoekWoonplaatsBijPostcode,
 	}
 
-	type Elements struct {
-		Element []Element `json:"Element"`
+	err := json.Unmarshal(b, &in)
+	if err != nil {
+		return err
 	}
-
-	structure := Elements{
-		[]Element{
-			Element{
-				Fields:  fields,
-				Objects: objects,
-			},
-		},
-	}
-
-	return json.Marshal(structure)
+	*k = KnBasicAddressAdr(in)
+	return nil
 }
 
 func (k KnBasicAddressAdr) JSONFields() []string {
@@ -563,9 +842,17 @@ type KnContact struct {
 }
 
 func (k KnContact) MarshalJSON() ([]byte, error) {
+	el, err := k.ToElement()
+	if err != nil {
+		return []byte{}, err
+	}
+	return json.Marshal(el)
+}
+
+func (k KnContact) ToElement() (Element, error) {
 	// If struct is empty: do nothing
 	if zero.IsZero(k) {
-		return []byte("null"), nil
+		return Element{}, nil
 	}
 
 	type alias KnContact
@@ -573,7 +860,7 @@ func (k KnContact) MarshalJSON() ([]byte, error) {
 	// type to json
 	b, err := json.Marshal(alias(k))
 	if err != nil {
-		return b, err
+		return Element{}, err
 	}
 
 	// json to map with preservation of json struct tags
@@ -607,26 +894,75 @@ func (k KnContact) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	type Element struct {
-		DBID    string                 `json:"@DbId,omitempty"`
-		Fields  map[string]interface{} `json:"Fields,omitempty"`
-		Objects map[string]interface{} `json:"Objects,omitempty"`
+	return Element{
+		Fields:  fields,
+		Objects: objects,
+	}, nil
+}
+
+func (k *KnContact) UnmarshalJSON(b []byte) error {
+
+	in := struct {
+		PostadresIsAdres     bool              `json:""`           // Postadres is adres
+		SoortContact         string            `json:",omitempty"` // Soort Contact
+		Afdeling             string            `json:",omitempty"` // Afdeling
+		Functie              string            `json:",omitempty"` // Functie
+		FunctieOpVisitekaart string            `json:",omitempty"` // Functie op visitekaart
+		Correspondentie      bool              `json:",omitempty"` // Correspondentie
+		Voorkeursmedium      string            `json:",omitempty"` // Voorkeursmedium
+		TelefoonnrWerk       string            `json:",omitempty"` // Telefoonnr. werk
+		FaxWerk              string            `json:",omitempty"` // Fax werk
+		MobielWerk           string            `json:",omitempty"` // Mobiel werk
+		EMailWerk            string            `json:",omitempty"` // E-mail werk
+		Website              string            `json:",omitempty"` // Website
+		Toelichting          []byte            `json:",omitempty"` // Toelichting
+		Geblokkeerd          bool              `json:",omitempty"` // Geblokkeerd
+		TavRegel             string            `json:",omitempty"` // T.a.v. regel
+		Briefaanhef          string            `json:",omitempty"` // Briefaanhef
+		SocialeNetwerken     string            `json:",omitempty"` // Sociale netwerken
+		Facebook             string            `json:",omitempty"` // Facebook
+		LinkedIn             string            `json:",omitempty"` // LinkedIn
+		Twitter              string            `json:",omitempty"` // Twitter
+		Kerstkaart           bool              `json:",omitempty"` // Kerstkaart
+		MailingOntvangen     bool              `json:",omitempty"` // Mailing ontvangen
+		KnBasicAddressAdr    KnBasicAddressAdr `json:""`           // KnBasicAddressAdr
+		KnBasicAddressPad    KnBasicAddressPad `json:""`           // KnBasicAddressPad
+		KnPerson             KnPerson          `json:""`           // KnPerson
+
+	}{
+		PostadresIsAdres:     k.PostadresIsAdres,
+		SoortContact:         k.SoortContact,
+		Afdeling:             k.Afdeling,
+		Functie:              k.Functie,
+		FunctieOpVisitekaart: k.FunctieOpVisitekaart,
+		Correspondentie:      k.Correspondentie,
+		Voorkeursmedium:      k.Voorkeursmedium,
+		TelefoonnrWerk:       k.TelefoonnrWerk,
+		FaxWerk:              k.FaxWerk,
+		MobielWerk:           k.MobielWerk,
+		EMailWerk:            k.EMailWerk,
+		Website:              k.Website,
+		Toelichting:          k.Toelichting,
+		Geblokkeerd:          k.Geblokkeerd,
+		TavRegel:             k.TavRegel,
+		Briefaanhef:          k.Briefaanhef,
+		SocialeNetwerken:     k.SocialeNetwerken,
+		Facebook:             k.Facebook,
+		LinkedIn:             k.LinkedIn,
+		Twitter:              k.Twitter,
+		Kerstkaart:           k.Kerstkaart,
+		MailingOntvangen:     k.MailingOntvangen,
+		KnBasicAddressAdr:    k.KnBasicAddressAdr,
+		KnBasicAddressPad:    k.KnBasicAddressPad,
+		KnPerson:             k.KnPerson,
 	}
 
-	type Elements struct {
-		Element []Element `json:"Element"`
+	err := json.Unmarshal(b, &in)
+	if err != nil {
+		return err
 	}
-
-	structure := Elements{
-		[]Element{
-			Element{
-				Fields:  fields,
-				Objects: objects,
-			},
-		},
-	}
-
-	return json.Marshal(structure)
+	*k = KnContact(in)
+	return nil
 }
 
 func (k KnContact) JSONFields() []string {
@@ -653,9 +989,6 @@ func (k KnContact) JSONFields() []string {
 		"Twtr",
 		"U006",
 		"U007",
-		"",
-		"",
-		"",
 	}
 }
 
@@ -669,8 +1002,8 @@ func (k KnContact) JSONObjects() []string {
 
 // KnBasicAddressPad
 type KnBasicAddressPad struct {
-	Land                                                   string    `json:"CoId"`           // Land
-	Postbusadres                                           bool      `json:"PbAd"`           // Postbusadres
+	Land                                                   string    `json:"CoId,omitempty"` // Land
+	Postbusadres                                           bool      `json:"PbAd,omitempty"` // Postbusadres
 	ToevVoorStraat                                         string    `json:"StAd,omitempty"` // Toev. voor straat
 	Straat                                                 string    `json:"Ad,omitempty"`   // Straat
 	Huisnummer                                             int       `json:"HmNr,omitempty"` // Huisnummer
@@ -684,9 +1017,17 @@ type KnBasicAddressPad struct {
 }
 
 func (k KnBasicAddressPad) MarshalJSON() ([]byte, error) {
+	el, err := k.ToElement()
+	if err != nil {
+		return []byte{}, err
+	}
+	return json.Marshal(el)
+}
+
+func (k KnBasicAddressPad) ToElement() (Element, error) {
 	// If struct is empty: do nothing
 	if zero.IsZero(k) {
-		return []byte("null"), nil
+		return Element{}, nil
 	}
 
 	type alias KnBasicAddressPad
@@ -694,7 +1035,7 @@ func (k KnBasicAddressPad) MarshalJSON() ([]byte, error) {
 	// type to json
 	b, err := json.Marshal(alias(k))
 	if err != nil {
-		return b, err
+		return Element{}, err
 	}
 
 	// json to map with preservation of json struct tags
@@ -728,26 +1069,47 @@ func (k KnBasicAddressPad) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	type Element struct {
-		DBID    string                 `json:"@DbId,omitempty"`
-		Fields  map[string]interface{} `json:"Fields,omitempty"`
-		Objects map[string]interface{} `json:"Objects,omitempty"`
+	return Element{
+		Fields:  fields,
+		Objects: objects,
+	}, nil
+}
+
+func (k *KnBasicAddressPad) UnmarshalJSON(b []byte) error {
+
+	in := struct {
+		Land                                                   string    `json:",omitempty"` // Land
+		Postbusadres                                           bool      `json:",omitempty"` // Postbusadres
+		ToevVoorStraat                                         string    `json:",omitempty"` // Toev. voor straat
+		Straat                                                 string    `json:",omitempty"` // Straat
+		Huisnummer                                             int       `json:",omitempty"` // Huisnummer
+		ToevAanHuisnr                                          string    `json:",omitempty"` // Toev. aan huisnr.
+		Postcode                                               string    `json:",omitempty"` // Postcode
+		Woonplaats                                             string    `json:",omitempty"` // Woonplaats
+		AdresToevoeging                                        string    `json:",omitempty"` // Adres toevoeging
+		IngangsdatumAdreswijzigingwordtGenegeerdBijEersteDatum date.Date `json:""`           // Ingangsdatum adreswijziging (wordt genegeerd bij eerste datum)
+		ZoekWoonplaatsBijPostcode                              bool      `json:""`           // Zoek woonplaats bij postcode
+
+	}{
+		Land:                                                   k.Land,
+		Postbusadres:                                           k.Postbusadres,
+		ToevVoorStraat:                                         k.ToevVoorStraat,
+		Straat:                                                 k.Straat,
+		Huisnummer:                                             k.Huisnummer,
+		ToevAanHuisnr:                                          k.ToevAanHuisnr,
+		Postcode:                                               k.Postcode,
+		Woonplaats:                                             k.Woonplaats,
+		AdresToevoeging:                                        k.AdresToevoeging,
+		IngangsdatumAdreswijzigingwordtGenegeerdBijEersteDatum: k.IngangsdatumAdreswijzigingwordtGenegeerdBijEersteDatum,
+		ZoekWoonplaatsBijPostcode:                              k.ZoekWoonplaatsBijPostcode,
 	}
 
-	type Elements struct {
-		Element []Element `json:"Element"`
+	err := json.Unmarshal(b, &in)
+	if err != nil {
+		return err
 	}
-
-	structure := Elements{
-		[]Element{
-			Element{
-				Fields:  fields,
-				Objects: objects,
-			},
-		},
-	}
-
-	return json.Marshal(structure)
+	*k = KnBasicAddressPad(in)
+	return nil
 }
 
 func (k KnBasicAddressPad) JSONFields() []string {
@@ -775,15 +1137,15 @@ type KnPerson struct {
 	PostadresIsAdres                                   bool              `json:"PadAdr"`                // Postadres is adres
 	Autonummering                                      bool              `json:"AutoNum"`               // Autonummering
 	PersoonVergelijkenOp                               string            `json:"MatchPer"`              // Persoon vergelijken op
-	Organisatiepersoonintern                           int               `json:"BcId"`                  // Organisatie/persoon (intern)
-	Nummer                                             string            `json:"BcCo"`                  // Nummer
+	Organisatiepersoonintern                           int               `json:"BcId,omitempty"`        // Organisatie/persoon (intern)
+	Nummer                                             string            `json:"BcCo,omitempty"`        // Nummer
 	Zoeknaam                                           string            `json:"SeNm,omitempty"`        // Zoeknaam
 	Roepnaam                                           string            `json:"CaNm,omitempty"`        // Roepnaam
 	Voornaam                                           string            `json:"FiNm,omitempty"`        // Voornaam
 	Voorletters                                        string            `json:"In,omitempty"`          // Voorletters
 	Voorvoegsel                                        string            `json:"Is,omitempty"`          // Voorvoegsel
 	Achternaam                                         string            `json:"LaNm,omitempty"`        // Achternaam
-	GeboortenaamApartVastleggen                        bool              `json:"SpNm"`                  // Geboortenaam apart vastleggen
+	GeboortenaamApartVastleggen                        bool              `json:"SpNm,omitempty"`        // Geboortenaam apart vastleggen
 	VoorvGebnaam                                       string            `json:"IsBi,omitempty"`        // Voorv. geb.naam
 	Geboortenaam                                       string            `json:"NmBi,omitempty"`        // Geboortenaam
 	VoorvoegselPartner                                 string            `json:"IsPa,omitempty"`        // Voorvoegsel partner
@@ -810,7 +1172,7 @@ type KnPerson struct {
 	EMailWerk                                          string            `json:"EmAd,omitempty"`        // E-mail werk
 	EMailPrivé                                         string            `json:"EmA2,omitempty"`        // E-mail privé
 	Website                                            string            `json:"HoPa,omitempty"`        // Website
-	Correspondentie                                    bool              `json:"Corr"`                  // Correspondentie
+	Correspondentie                                    bool              `json:"Corr,omitempty"`        // Correspondentie
 	Voorkeursmedium                                    string            `json:"ViMd,omitempty"`        // Voorkeursmedium
 	Opmerking                                          []byte            `json:"Re,omitempty"`          // Opmerking
 	Status                                             string            `json:"StId,omitempty"`        // Status
@@ -830,9 +1192,17 @@ type KnPerson struct {
 }
 
 func (k KnPerson) MarshalJSON() ([]byte, error) {
+	el, err := k.ToElement()
+	if err != nil {
+		return []byte{}, err
+	}
+	return json.Marshal(el)
+}
+
+func (k KnPerson) ToElement() (Element, error) {
 	// If struct is empty: do nothing
 	if zero.IsZero(k) {
-		return []byte("null"), nil
+		return Element{}, nil
 	}
 
 	type alias KnPerson
@@ -840,7 +1210,7 @@ func (k KnPerson) MarshalJSON() ([]byte, error) {
 	// type to json
 	b, err := json.Marshal(alias(k))
 	if err != nil {
-		return b, err
+		return Element{}, err
 	}
 
 	// json to map with preservation of json struct tags
@@ -874,26 +1244,133 @@ func (k KnPerson) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	type Element struct {
-		DBID    string                 `json:"@DbId,omitempty"`
-		Fields  map[string]interface{} `json:"Fields,omitempty"`
-		Objects map[string]interface{} `json:"Objects,omitempty"`
+	return Element{
+		Fields:  fields,
+		Objects: objects,
+	}, nil
+}
+
+func (k *KnPerson) UnmarshalJSON(b []byte) error {
+
+	in := struct {
+		PostadresIsAdres                                   bool              `json:""`           // Postadres is adres
+		Autonummering                                      bool              `json:""`           // Autonummering
+		PersoonVergelijkenOp                               string            `json:""`           // Persoon vergelijken op
+		Organisatiepersoonintern                           int               `json:",omitempty"` // Organisatie/persoon (intern)
+		Nummer                                             string            `json:",omitempty"` // Nummer
+		Zoeknaam                                           string            `json:",omitempty"` // Zoeknaam
+		Roepnaam                                           string            `json:",omitempty"` // Roepnaam
+		Voornaam                                           string            `json:",omitempty"` // Voornaam
+		Voorletters                                        string            `json:",omitempty"` // Voorletters
+		Voorvoegsel                                        string            `json:",omitempty"` // Voorvoegsel
+		Achternaam                                         string            `json:",omitempty"` // Achternaam
+		GeboortenaamApartVastleggen                        bool              `json:",omitempty"` // Geboortenaam apart vastleggen
+		VoorvGebnaam                                       string            `json:",omitempty"` // Voorv. geb.naam
+		Geboortenaam                                       string            `json:",omitempty"` // Geboortenaam
+		VoorvoegselPartner                                 string            `json:",omitempty"` // Voorvoegsel partner
+		GebnaamPartner                                     string            `json:",omitempty"` // Geb.naam partner
+		Naamgebruik                                        string            `json:",omitempty"` // Naamgebruik
+		Geslacht                                           string            `json:",omitempty"` // Geslacht
+		Nationaliteit                                      string            `json:",omitempty"` // Nationaliteit
+		Geboortedatum                                      *date.Date        `json:",omitempty"` // Geboortedatum
+		Geboorteland                                       string            `json:",omitempty"` // Geboorteland
+		Geboorteplaats                                     string            `json:",omitempty"` // Geboorteplaats
+		BSN                                                string            `json:",omitempty"` // BSN
+		BurgerlijkeStaat                                   string            `json:",omitempty"` // Burgerlijke staat
+		Huwelijksdatum                                     *date.Date        `json:",omitempty"` // Huwelijksdatum
+		DatumScheiding                                     *date.Date        `json:",omitempty"` // Datum scheiding
+		Overlijdensdatum                                   *date.Date        `json:",omitempty"` // Overlijdensdatum
+		Titelaanhef                                        string            `json:",omitempty"` // Titel/aanhef
+		TweedeTitel                                        string            `json:",omitempty"` // Tweede titel
+		Briefaanhef                                        string            `json:",omitempty"` // Briefaanhef
+		TelefoonnrWerk                                     string            `json:",omitempty"` // Telefoonnr. werk
+		TelefoonnrPrivé                                    string            `json:",omitempty"` // Telefoonnr. privé
+		FaxWerk                                            string            `json:",omitempty"` // Fax werk
+		MobielWerk                                         string            `json:",omitempty"` // Mobiel werk
+		MobielPrivé                                        string            `json:",omitempty"` // Mobiel privé
+		EMailWerk                                          string            `json:",omitempty"` // E-mail werk
+		EMailPrivé                                         string            `json:",omitempty"` // E-mail privé
+		Website                                            string            `json:",omitempty"` // Website
+		Correspondentie                                    bool              `json:",omitempty"` // Correspondentie
+		Voorkeursmedium                                    string            `json:",omitempty"` // Voorkeursmedium
+		Opmerking                                          []byte            `json:",omitempty"` // Opmerking
+		Status                                             string            `json:",omitempty"` // Status
+		SocialeNetwerken                                   string            `json:",omitempty"` // Sociale netwerken
+		Facebook                                           string            `json:",omitempty"` // Facebook
+		LinkedIn                                           string            `json:",omitempty"` // LinkedIn
+		Twitter                                            string            `json:",omitempty"` // Twitter
+		LandWetgeving                                      string            `json:",omitempty"` // Land wetgeving
+		NaamBestand                                        string            `json:",omitempty"` // Naam bestand
+		Afbeelding                                         []byte            `json:",omitempty"` // Afbeelding
+		PersoonToegangGevenTotAfgeschermdeDeelVanDePortals bool              `json:""`           // Persoon toegang geven tot afgeschermde deel van de portal(s)
+		EMailToegang                                       string            `json:",omitempty"` // E-mail toegang
+		KnBankAccount                                      KnBankAccount     `json:""`           // KnBankAccount
+		KnBasicAddressAdr                                  KnBasicAddressAdr `json:""`           // KnBasicAddressAdr
+		KnBasicAddressPad                                  KnBasicAddressPad `json:""`           // KnBasicAddressPad
+
+	}{
+		PostadresIsAdres:         k.PostadresIsAdres,
+		Autonummering:            k.Autonummering,
+		PersoonVergelijkenOp:     k.PersoonVergelijkenOp,
+		Organisatiepersoonintern: k.Organisatiepersoonintern,
+		Nummer:                      k.Nummer,
+		Zoeknaam:                    k.Zoeknaam,
+		Roepnaam:                    k.Roepnaam,
+		Voornaam:                    k.Voornaam,
+		Voorletters:                 k.Voorletters,
+		Voorvoegsel:                 k.Voorvoegsel,
+		Achternaam:                  k.Achternaam,
+		GeboortenaamApartVastleggen: k.GeboortenaamApartVastleggen,
+		VoorvGebnaam:                k.VoorvGebnaam,
+		Geboortenaam:                k.Geboortenaam,
+		VoorvoegselPartner:          k.VoorvoegselPartner,
+		GebnaamPartner:              k.GebnaamPartner,
+		Naamgebruik:                 k.Naamgebruik,
+		Geslacht:                    k.Geslacht,
+		Nationaliteit:               k.Nationaliteit,
+		Geboortedatum:               k.Geboortedatum,
+		Geboorteland:                k.Geboorteland,
+		Geboorteplaats:              k.Geboorteplaats,
+		BSN:                         k.BSN,
+		BurgerlijkeStaat:            k.BurgerlijkeStaat,
+		Huwelijksdatum:              k.Huwelijksdatum,
+		DatumScheiding:              k.DatumScheiding,
+		Overlijdensdatum:            k.Overlijdensdatum,
+		Titelaanhef:                 k.Titelaanhef,
+		TweedeTitel:                 k.TweedeTitel,
+		Briefaanhef:                 k.Briefaanhef,
+		TelefoonnrWerk:              k.TelefoonnrWerk,
+		TelefoonnrPrivé:             k.TelefoonnrPrivé,
+		FaxWerk:                     k.FaxWerk,
+		MobielWerk:                  k.MobielWerk,
+		MobielPrivé:                 k.MobielPrivé,
+		EMailWerk:                   k.EMailWerk,
+		EMailPrivé:                  k.EMailPrivé,
+		Website:                     k.Website,
+		Correspondentie:             k.Correspondentie,
+		Voorkeursmedium:             k.Voorkeursmedium,
+		Opmerking:                   k.Opmerking,
+		Status:                      k.Status,
+		SocialeNetwerken:            k.SocialeNetwerken,
+		Facebook:                    k.Facebook,
+		LinkedIn:                    k.LinkedIn,
+		Twitter:                     k.Twitter,
+		LandWetgeving:               k.LandWetgeving,
+		NaamBestand:                 k.NaamBestand,
+		Afbeelding:                  k.Afbeelding,
+		PersoonToegangGevenTotAfgeschermdeDeelVanDePortals: k.PersoonToegangGevenTotAfgeschermdeDeelVanDePortals,
+		EMailToegang:      k.EMailToegang,
+		KnBankAccount:     k.KnBankAccount,
+		KnBasicAddressAdr: k.KnBasicAddressAdr,
+		KnBasicAddressPad: k.KnBasicAddressPad,
 	}
 
-	type Elements struct {
-		Element []Element `json:"Element"`
+	err := json.Unmarshal(b, &in)
+	if err != nil {
+		return err
 	}
-
-	structure := Elements{
-		[]Element{
-			Element{
-				Fields:  fields,
-				Objects: objects,
-			},
-		},
-	}
-
-	return json.Marshal(structure)
+	*k = KnPerson(in)
+	return nil
 }
 
 func (k KnPerson) JSONFields() []string {
@@ -949,9 +1426,6 @@ func (k KnPerson) JSONFields() []string {
 		"FileStream",
 		"AddToPortal",
 		"EmailPortal",
-		"",
-		"",
-		"",
 	}
 }
 
@@ -965,8 +1439,8 @@ func (k KnPerson) JSONObjects() []string {
 
 // KnBankAccount
 type KnBankAccount struct {
-	LandVanDeBank        string `json:"CoId"`           // Land van de bank
-	IBANControle         bool   `json:"IbCk"`           // IBAN-controle
+	LandVanDeBank        string `json:"CoId,omitempty"` // Land van de bank
+	IBANControle         bool   `json:"IbCk,omitempty"` // IBAN-controle
 	IBANNummer           string `json:"Iban,omitempty"` // IBAN-nummer
 	Bankrekening         string `json:"BaAc,omitempty"` // Bankrekening
 	TypeBank             int    `json:"BkTp,omitempty"` // Type bank
@@ -985,9 +1459,17 @@ type KnBankAccount struct {
 }
 
 func (k KnBankAccount) MarshalJSON() ([]byte, error) {
+	el, err := k.ToElement()
+	if err != nil {
+		return []byte{}, err
+	}
+	return json.Marshal(el)
+}
+
+func (k KnBankAccount) ToElement() (Element, error) {
 	// If struct is empty: do nothing
 	if zero.IsZero(k) {
-		return []byte("null"), nil
+		return Element{}, nil
 	}
 
 	type alias KnBankAccount
@@ -995,7 +1477,7 @@ func (k KnBankAccount) MarshalJSON() ([]byte, error) {
 	// type to json
 	b, err := json.Marshal(alias(k))
 	if err != nil {
-		return b, err
+		return Element{}, err
 	}
 
 	// json to map with preservation of json struct tags
@@ -1029,26 +1511,57 @@ func (k KnBankAccount) MarshalJSON() ([]byte, error) {
 		}
 	}
 
-	type Element struct {
-		DBID    string                 `json:"@DbId,omitempty"`
-		Fields  map[string]interface{} `json:"Fields,omitempty"`
-		Objects map[string]interface{} `json:"Objects,omitempty"`
+	return Element{
+		Fields:  fields,
+		Objects: objects,
+	}, nil
+}
+
+func (k *KnBankAccount) UnmarshalJSON(b []byte) error {
+
+	in := struct {
+		LandVanDeBank        string `json:",omitempty"` // Land van de bank
+		IBANControle         bool   `json:",omitempty"` // IBAN-controle
+		IBANNummer           string `json:",omitempty"` // IBAN-nummer
+		Bankrekening         string `json:",omitempty"` // Bankrekening
+		TypeBank             int    `json:",omitempty"` // Type bank
+		Bank                 string `json:",omitempty"` // Bank
+		GRekening            bool   `json:",omitempty"` // G-rekening
+		Cheque               bool   `json:",omitempty"` // Cheque
+		AfwijkendeNaam       string `json:",omitempty"` // Afwijkende naam
+		AfwijkendeWoonplaats string `json:",omitempty"` // Afwijkende woonplaats
+		BICCode              string `json:",omitempty"` // BIC-code
+		NaamBank             string `json:",omitempty"` // Naam bank
+		FiliaalVanDeBank     string `json:",omitempty"` // Filiaal van de bank
+		AdresVanDeBank       string `json:",omitempty"` // Adres van de bank
+		VestigingsplaatsBank string `json:",omitempty"` // Vestigingsplaats bank
+		CodeDoorberekening   string `json:",omitempty"` // Code doorberekening
+
+	}{
+		LandVanDeBank:        k.LandVanDeBank,
+		IBANControle:         k.IBANControle,
+		IBANNummer:           k.IBANNummer,
+		Bankrekening:         k.Bankrekening,
+		TypeBank:             k.TypeBank,
+		Bank:                 k.Bank,
+		GRekening:            k.GRekening,
+		Cheque:               k.Cheque,
+		AfwijkendeNaam:       k.AfwijkendeNaam,
+		AfwijkendeWoonplaats: k.AfwijkendeWoonplaats,
+		BICCode:              k.BICCode,
+		NaamBank:             k.NaamBank,
+		FiliaalVanDeBank:     k.FiliaalVanDeBank,
+		AdresVanDeBank:       k.AdresVanDeBank,
+		VestigingsplaatsBank: k.VestigingsplaatsBank,
+		CodeDoorberekening:   k.CodeDoorberekening,
 	}
 
-	type Elements struct {
-		Element []Element `json:"Element"`
+	err := json.Unmarshal(b, &in)
+	if err != nil {
+		return err
 	}
-
-	structure := Elements{
-		[]Element{
-			Element{
-				Fields:  fields,
-				Objects: objects,
-			},
-		},
-	}
-
-	return json.Marshal(structure)
+	*k = KnBankAccount(in)
+	return nil
 }
 
 func (k KnBankAccount) JSONFields() []string {

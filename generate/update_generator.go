@@ -190,7 +190,7 @@ func generateUpdateConnectorObjectStructFieldFromField(f afas.UpdateConnectorFie
 			typ = "*date.Date"
 		}
 	case "decimal":
-		typ = "*apd.Decimal"
+		typ = "float64"
 	case "blob":
 		typ = "[]byte"
 	default:
@@ -207,10 +207,10 @@ func generateUpdateConnectorObjectStructFieldFromField(f afas.UpdateConnectorFie
 
 	// json tags
 	tags := ""
-	if f.Mandatory {
-		tags = fmt.Sprintf(`json:"%s"`, jsonName)
+	if f.Mandatory && !f.NotZero {
+		tags = ""
 	} else {
-		tags = fmt.Sprintf(`json:"%s,omitempty"`, jsonName)
+		tags = ",omitempty"
 	}
 
 	if f.NotZero {
@@ -234,6 +234,7 @@ func generateUpdateConnectorObjectStructFieldFromField(f afas.UpdateConnectorFie
 		Tags:     tags,
 		Type:     typ,
 		JSONName: jsonName,
+		IsObject: false,
 	}, nil
 }
 
@@ -241,21 +242,20 @@ func generateUpdateConnectorObjectStructFieldFromObject(o afas.UpdateConnectorOb
 	name := normalizeIdentifier(o.Name)
 
 	typ := name
-	if IsPlural(name) {
-		typ = fmt.Sprintf("[]%s", typ)
-	}
 
 	// json tags
-	tags := fmt.Sprintf(`json:"%s"`, o.Name)
+	tags := ""
 
 	// comment behind struct field
 	comment := o.Name
 
 	return UpdateConnectorObjectStructField{
-		Comment: comment,
-		Name:    name,
-		Tags:    tags,
-		Type:    typ,
+		Comment:  comment,
+		Name:     name,
+		Tags:     tags,
+		Type:     typ,
+		JSONName: name,
+		IsObject: true,
 	}, nil
 }
 
@@ -272,6 +272,8 @@ type UpdateConnectorObjectStruct struct {
 	Fields    UpdateConnectorObjectStructFields
 	Objects   []string
 	DBIDField string
+	IsSlice   bool
+	Plural    string
 }
 
 type UpdateConnectorObjectStructFields []UpdateConnectorObjectStructField
@@ -282,6 +284,7 @@ type UpdateConnectorObjectStructField struct {
 	Tags     string
 	Comment  string
 	JSONName string
+	IsObject bool
 	// ValidationRules
 }
 
@@ -347,12 +350,22 @@ func generateUpdateConnectorObject(o afas.UpdateConnectorObject) (UpdateConnecto
 	name := normalizeIdentifier(o.Name)
 	variable := strings.ToLower(string([]rune(name)[0]))
 
+	isSlice := false
+	plural := ""
+	if IsPlural(name) {
+		isSlice = true
+		plural = name
+		name = GetSingular(name)
+	}
+
 	return UpdateConnectorObjectStruct{
-		Comment:   o.Name,
+		Comment:   name,
 		Name:      name,
 		Variable:  variable,
 		Fields:    fields,
 		DBIDField: dbIDField,
 		Objects:   objects,
+		IsSlice:   isSlice,
+		Plural:    plural,
 	}, nil
 }

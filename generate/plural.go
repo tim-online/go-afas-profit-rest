@@ -1,13 +1,19 @@
 package main
 
-var plurals = []string{"FiEntries"}
+var plurals = map[string]string{
+	"FiEntries":    "FIEntry",
+	"FiDimEntries": "FiDimEntry",
+	"FiPrjEntries": "FiPrjEntry",
+}
 
 func IsPlural(s string) bool {
-	for _, p := range plurals {
-		if p == s {
-			return true
-		}
-	}
+	_, ok := plurals[s]
+	return ok
+}
 
-	return false
+func GetSingular(s string) string {
+	if s, _ := plurals[s]; s != "" {
+		return s
+	}
+	return s
 }
