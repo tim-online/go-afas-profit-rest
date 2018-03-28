@@ -16,8 +16,9 @@ type {{.Name}}InsertResponseBody struct {
 	EnNo  string `json:"EnNo"`
 }
 
+// wraps the root object of the request
 type {{.Name}}InsertRequestBody struct {
-    {{.Name}} `json:"{{.Name}}"`
+    {{.Name}}
 }
 
 func ({{.Variable}} *{{.Name}}InsertRequest) ResponseBody() *{{.Name}}InsertResponseBody {
@@ -40,28 +41,26 @@ func ({{.Variable}} *{{.Name}}InsertRequest) ResponseBody() *{{.Name}}InsertResp
 
 // Wrap extra object around root type:
 // {
-//   "root": {}
+//   "{{.Name}}": {}
 // }
 func ({{.Variable}} {{.Name}}InsertRequestBody) MarshalJSON() ([]byte, error) {
-	type alias {{.Name}}InsertRequestBody
-	wrapper := struct {
-		{{.Name}}InsertRequestBody alias `json:"{{.Name}}"`
-	}{ {{.Name}}InsertRequestBody: alias({{.Variable}})}
-	return json.Marshal(wrapper)
+	return json.Marshal(struct {
+		{{.Name}} {{.Name}} `json:"{{.Name}}"`
+	}{ {{.Variable}}.{{.Name}} })
 }
 
 func (r *{{.Name}}InsertRequest) RequestBody() *{{.Name}}InsertRequestBody {
-	if body, ok := r.ConnectorInsertRequest.RequestBody().(*{{.Name}}InsertRequestBody); ok {
-		return body
-	}
-
-	body := &{{.Name}}InsertRequestBody{}
-	r.ConnectorInsertRequest.SetRequestBody(body)
+	// convert ConnectorInsertRequest interface to real type
+	body, _ := r.ConnectorInsertRequest.RequestBody().(*{{.Name}}InsertRequestBody)
 	return body
 }
 
 func (s *{{.Name}}Service) NewInsertRequest() {{.Name}}InsertRequest {
 	r := s.api.Connector.NewInsertRequest()
+
+	// set custom request body on creation
+	r.SetRequestBody(&{{.Name}}InsertRequestBody{})
+
 	r.URLParams().ConnectorID = "{{.ID}}"
 	return {{.Name}}InsertRequest{ConnectorInsertRequest: r}
 }

@@ -16,8 +16,9 @@ type FiEntryParInsertResponseBody struct {
 	EnNo  string `json:"EnNo"`
 }
 
+// wraps the root object of the request
 type FiEntryParInsertRequestBody struct {
-	FiEntryPar `json:"FiEntryPar"`
+	FiEntryPar
 }
 
 func (f *FiEntryParInsertRequest) ResponseBody() *FiEntryParInsertResponseBody {
@@ -40,28 +41,26 @@ func (f *FiEntryParInsertRequest) ResponseBody() *FiEntryParInsertResponseBody {
 
 // Wrap extra object around root type:
 // {
-//   "root": {}
+//   "FiEntryPar": {}
 // }
 func (f FiEntryParInsertRequestBody) MarshalJSON() ([]byte, error) {
-	type alias FiEntryParInsertRequestBody
-	wrapper := struct {
-		FiEntryParInsertRequestBody alias `json:"FiEntryPar"`
-	}{FiEntryParInsertRequestBody: alias(f)}
-	return json.Marshal(wrapper)
+	return json.Marshal(struct {
+		FiEntryPar FiEntryPar `json:"FiEntryPar"`
+	}{f.FiEntryPar})
 }
 
 func (r *FiEntryParInsertRequest) RequestBody() *FiEntryParInsertRequestBody {
-	if body, ok := r.ConnectorInsertRequest.RequestBody().(*FiEntryParInsertRequestBody); ok {
-		return body
-	}
-
-	body := &FiEntryParInsertRequestBody{}
-	r.ConnectorInsertRequest.SetRequestBody(body)
+	// convert ConnectorInsertRequest interface to real type
+	body, _ := r.ConnectorInsertRequest.RequestBody().(*FiEntryParInsertRequestBody)
 	return body
 }
 
 func (s *FiEntryParService) NewInsertRequest() FiEntryParInsertRequest {
 	r := s.api.Connector.NewInsertRequest()
+
+	// set custom request body on creation
+	r.SetRequestBody(&FiEntryParInsertRequestBody{})
+
 	r.URLParams().ConnectorID = "FiEntries"
 	return FiEntryParInsertRequest{ConnectorInsertRequest: r}
 }

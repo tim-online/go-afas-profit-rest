@@ -16,8 +16,9 @@ type KnSalesRelationOrgInsertResponseBody struct {
 	EnNo  string `json:"EnNo"`
 }
 
+// wraps the root object of the request
 type KnSalesRelationOrgInsertRequestBody struct {
-	KnSalesRelationOrg `json:"KnSalesRelationOrg"`
+	KnSalesRelationOrg
 }
 
 func (k *KnSalesRelationOrgInsertRequest) ResponseBody() *KnSalesRelationOrgInsertResponseBody {
@@ -40,28 +41,26 @@ func (k *KnSalesRelationOrgInsertRequest) ResponseBody() *KnSalesRelationOrgInse
 
 // Wrap extra object around root type:
 // {
-//   "root": {}
+//   "KnSalesRelationOrg": {}
 // }
 func (k KnSalesRelationOrgInsertRequestBody) MarshalJSON() ([]byte, error) {
-	type alias KnSalesRelationOrgInsertRequestBody
-	wrapper := struct {
-		KnSalesRelationOrgInsertRequestBody alias `json:"KnSalesRelationOrg"`
-	}{KnSalesRelationOrgInsertRequestBody: alias(k)}
-	return json.Marshal(wrapper)
+	return json.Marshal(struct {
+		KnSalesRelationOrg KnSalesRelationOrg `json:"KnSalesRelationOrg"`
+	}{k.KnSalesRelationOrg})
 }
 
 func (r *KnSalesRelationOrgInsertRequest) RequestBody() *KnSalesRelationOrgInsertRequestBody {
-	if body, ok := r.ConnectorInsertRequest.RequestBody().(*KnSalesRelationOrgInsertRequestBody); ok {
-		return body
-	}
-
-	body := &KnSalesRelationOrgInsertRequestBody{}
-	r.ConnectorInsertRequest.SetRequestBody(body)
+	// convert ConnectorInsertRequest interface to real type
+	body, _ := r.ConnectorInsertRequest.RequestBody().(*KnSalesRelationOrgInsertRequestBody)
 	return body
 }
 
 func (s *KnSalesRelationOrgService) NewInsertRequest() KnSalesRelationOrgInsertRequest {
 	r := s.api.Connector.NewInsertRequest()
+
+	// set custom request body on creation
+	r.SetRequestBody(&KnSalesRelationOrgInsertRequestBody{})
+
 	r.URLParams().ConnectorID = "KnSalesRelationOrg"
 	return KnSalesRelationOrgInsertRequest{ConnectorInsertRequest: r}
 }
