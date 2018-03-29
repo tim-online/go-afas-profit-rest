@@ -171,7 +171,7 @@ func (f FiEntries) MarshalJSON() ([]byte, error) {
 
 // FIEntry
 type FIEntry struct {
-	NummerJournaalpost         int          `json:"EnNo"`                                        // Nummer journaalpost
+	NummerJournaalpost         int          `json:"EnNo,omitempty"`                              // Nummer journaalpost
 	KenmerkRekening            string       `json:"VaAs"`                                        // Kenmerk rekening
 	Rekeningnummer             string       `json:"AcNr"`                                        // Rekeningnummer
 	DatumBoeking               date.Date    `json:"EnDa"`                                        // Datum boeking
@@ -285,7 +285,7 @@ func (f *FIEntry) UnmarshalJSON(b []byte) error {
 
 	// @TODO: make this a separate struct/method so Go generates better messages
 	in := struct {
-		NummerJournaalpost         int          `json:""`           // Nummer journaalpost
+		NummerJournaalpost         int          `json:",omitempty"` // Nummer journaalpost
 		KenmerkRekening            string       `json:""`           // Kenmerk rekening
 		Rekeningnummer             string       `json:""`           // Rekeningnummer
 		DatumBoeking               date.Date    `json:""`           // Datum boeking
