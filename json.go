@@ -1,6 +1,10 @@
 package afas
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/cydev/zero"
+)
 
 type Elements []Element
 
@@ -23,6 +27,10 @@ type Element struct {
 }
 
 func (e Element) MarshalJSON() ([]byte, error) {
+	if zero.IsZero(e) {
+		return []byte("null"), nil
+	}
+
 	type alias Element
 	a := alias(e)
 

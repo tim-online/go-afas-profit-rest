@@ -16,6 +16,8 @@ func (s *ConnectorService) NewListRequest() ConnectorListRequest {
 			Take:            0,
 			OrderByFieldIDs: "",
 			FilterFieldIDs:  "",
+			FilterValues:    "",
+			OperatorTypes:   "",
 		},
 		requestBody:  s.NewListRequestBody(),
 		responseBody: s.NewListResponseBody(),
@@ -90,7 +92,9 @@ type ConnectorListQueryParams struct {
 	Skip            int    `schema:"skip,omitempty"`
 	Take            int    `schema:"take,omitempty"`
 	OrderByFieldIDs string `schema:"orderbyfieldids,omitempty"`
-	FilterFieldIDs  string `schema:"filterfieldsids,omitempty"`
+	FilterFieldIDs  string `schema:"filterfieldids,omitempty"`
+	FilterValues    string `schema:"filtervalues,omitempty"`
+	OperatorTypes   string `schema:"operatortypes,omitempty"`
 }
 
 func (r *ConnectorListRequest) URLParams() *ConnectorListURLParams {

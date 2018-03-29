@@ -62,6 +62,20 @@ func (g UpdateGenerator) Generate(connectors afas.UpdateConnectors) (map[string]
 		filename = fmt.Sprintf("%s_insert_test.go", filenameBase)
 		files[filename] = r
 
+		r, err = g.GenerateUpdateCode(st)
+		if err != nil {
+			return files, err
+		}
+		filename = fmt.Sprintf("%s_update.go", filenameBase)
+		files[filename] = r
+
+		r, err = g.GenerateTestUpdateCode(st)
+		if err != nil {
+			return files, err
+		}
+		filename = fmt.Sprintf("%s_update_test.go", filenameBase)
+		files[filename] = r
+
 		r, err = g.GenerateServiceCode(st)
 		if err != nil {
 			return files, err
@@ -105,6 +119,44 @@ func (g UpdateGenerator) GenerateInsertCode(st UpdateConnectorStruct) (io.Reader
 func (g UpdateGenerator) GenerateTestInsertCode(st UpdateConnectorStruct) (io.Reader, error) {
 	buf := bytes.NewBuffer([]byte{})
 	tmpl, err := template.ParseFiles("generate/update_connector_insert_test.go.tmpl")
+	if err != nil {
+		return buf, err
+	}
+
+	data := struct {
+		ID string
+		UpdateConnectorObjectStruct
+	}{
+		ID: st.ID,
+		UpdateConnectorObjectStruct: st.Objects[0],
+	}
+
+	err = tmpl.Execute(buf, data)
+	return buf, err
+}
+
+func (g UpdateGenerator) GenerateUpdateCode(st UpdateConnectorStruct) (io.Reader, error) {
+	buf := bytes.NewBuffer([]byte{})
+	tmpl, err := template.ParseFiles("generate/update_connector_update.go.tmpl")
+	if err != nil {
+		return buf, err
+	}
+
+	data := struct {
+		ID string
+		UpdateConnectorObjectStruct
+	}{
+		ID: st.ID,
+		UpdateConnectorObjectStruct: st.Objects[0],
+	}
+
+	err = tmpl.Execute(buf, data)
+	return buf, err
+}
+
+func (g UpdateGenerator) GenerateTestUpdateCode(st UpdateConnectorStruct) (io.Reader, error) {
+	buf := bytes.NewBuffer([]byte{})
+	tmpl, err := template.ParseFiles("generate/update_connector_update_test.go.tmpl")
 	if err != nil {
 		return buf, err
 	}
@@ -182,7 +234,11 @@ func generateUpdateConnectorObjectStructFieldFromField(f afas.UpdateConnectorFie
 	case "int":
 		typ = "int"
 	case "boolean":
-		typ = "bool"
+		if f.Mandatory {
+			typ = "bool"
+		} else {
+			typ = "*bool"
+		}
 	case "date":
 		if f.Mandatory {
 			typ = "date.Date"
@@ -204,10 +260,14 @@ func generateUpdateConnectorObjectStructFieldFromField(f afas.UpdateConnectorFie
 	}
 
 	jsonName := f.FieldID
+	if f.PrimaryKey {
+		// when a key is primary it gets serialized into {"Element":{"@DbId":""}}
+		jsonName = ""
+	}
 
 	// json tags
 	tags := ""
-	if f.Mandatory && !f.NotZero {
+	if f.Mandatory {
 		tags = ""
 	} else {
 		tags = ",omitempty"

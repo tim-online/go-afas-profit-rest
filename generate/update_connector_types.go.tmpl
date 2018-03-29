@@ -55,6 +55,7 @@ func ({{.Variable}} {{.Name}}) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
+
 	return json.Marshal(el)
 }
 
@@ -90,6 +91,8 @@ func ({{.Variable}} {{.Name}}) ToElement() (Element, error) {
 
 		for _, f := range jsonObjects {
 			if k == f {
+                // value is an object
+
                 // skip empty objects
                 // @TODO: move this logic to an Objects struct aliasing
                 // map[string]interface{}
@@ -104,6 +107,9 @@ func ({{.Variable}} {{.Name}}) ToElement() (Element, error) {
 	}
 
 	return Element{
+        {{- if .DBIDField}}
+        DBID: {{.Variable}}.DBID(),
+        {{- end}}
 		Fields:  fields,
 		Objects: objects,
 	}, nil
@@ -121,6 +127,7 @@ func ({{.Variable}} {{.Name}}) DBID() string {
 
 func ({{.Variable}} *{{.Name}}) UnmarshalJSON(b []byte) error {
     {{$variable := .Variable}}
+    // @TODO: make this a separate struct/method so Go generates better messages
 	in := struct {
         {{range .Fields}} {{.Name}} {{.Type}} `json:"{{.Tags}}"` // {{.Comment}}
         {{end}}

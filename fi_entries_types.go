@@ -12,14 +12,14 @@ import (
 
 // FiEntryPar
 type FiEntryPar struct {
-	Boekjaar                       int       `json:"Year,omitempty"` // Boekjaar
+	Boekjaar                       int       `json:"Year"`           // Boekjaar
 	Periode                        int       `json:"Peri"`           // Periode
 	NummerAdministratie            int       `json:"UnId,omitempty"` // Nummer administratie
-	Dagboek                        string    `json:"JoCo,omitempty"` // Dagboek
-	MaakVerbijzonderingscode       bool      `json:"AdDc,omitempty"` // Maak verbijzonderingscode
-	MaakVerbijzonderingstoewijzing bool      `json:"AdDa,omitempty"` // Maak verbijzonderingstoewijzing
+	Dagboek                        string    `json:"JoCo"`           // Dagboek
+	MaakVerbijzonderingscode       *bool     `json:"AdDc,omitempty"` // Maak verbijzonderingscode
+	MaakVerbijzonderingstoewijzing *bool     `json:"AdDa,omitempty"` // Maak verbijzonderingstoewijzing
 	TypeBoeking                    int       `json:"PrTp,omitempty"` // Type boeking
-	AutonummeringFactuur           bool      `json:"AuNu,omitempty"` // Autonummering factuur
+	AutonummeringFactuur           *bool     `json:"AuNu,omitempty"` // Autonummering factuur
 	FiEntries                      FiEntries `json:"FiEntries"`      // FiEntries
 
 }
@@ -29,6 +29,7 @@ func (f FiEntryPar) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
+
 	return json.Marshal(el)
 }
 
@@ -64,6 +65,8 @@ func (f FiEntryPar) ToElement() (Element, error) {
 
 		for _, f := range jsonObjects {
 			if k == f {
+				// value is an object
+
 				// skip empty objects
 				// @TODO: move this logic to an Objects struct aliasing
 				// map[string]interface{}
@@ -85,15 +88,16 @@ func (f FiEntryPar) ToElement() (Element, error) {
 
 func (f *FiEntryPar) UnmarshalJSON(b []byte) error {
 
+	// @TODO: make this a separate struct/method so Go generates better messages
 	in := struct {
-		Boekjaar                       int       `json:",omitempty"` // Boekjaar
+		Boekjaar                       int       `json:""`           // Boekjaar
 		Periode                        int       `json:""`           // Periode
 		NummerAdministratie            int       `json:",omitempty"` // Nummer administratie
-		Dagboek                        string    `json:",omitempty"` // Dagboek
-		MaakVerbijzonderingscode       bool      `json:",omitempty"` // Maak verbijzonderingscode
-		MaakVerbijzonderingstoewijzing bool      `json:",omitempty"` // Maak verbijzonderingstoewijzing
+		Dagboek                        string    `json:""`           // Dagboek
+		MaakVerbijzonderingscode       *bool     `json:",omitempty"` // Maak verbijzonderingscode
+		MaakVerbijzonderingstoewijzing *bool     `json:",omitempty"` // Maak verbijzonderingstoewijzing
 		TypeBoeking                    int       `json:",omitempty"` // Type boeking
-		AutonummeringFactuur           bool      `json:",omitempty"` // Autonummering factuur
+		AutonummeringFactuur           *bool     `json:",omitempty"` // Autonummering factuur
 		FiEntries                      FiEntries `json:""`           // FiEntries
 
 	}{
@@ -167,11 +171,11 @@ func (f FiEntries) MarshalJSON() ([]byte, error) {
 
 // FIEntry
 type FIEntry struct {
-	NummerJournaalpost         int          `json:"EnNo,omitempty"`                              // Nummer journaalpost
-	KenmerkRekening            string       `json:"VaAs,omitempty"`                              // Kenmerk rekening
-	Rekeningnummer             string       `json:"AcNr,omitempty"`                              // Rekeningnummer
-	DatumBoeking               date.Date    `json:"EnDa,omitempty"`                              // Datum boeking
-	Boekstukdatum              date.Date    `json:"BpDa,omitempty"`                              // Boekstukdatum
+	NummerJournaalpost         int          `json:"EnNo"`                                        // Nummer journaalpost
+	KenmerkRekening            string       `json:"VaAs"`                                        // Kenmerk rekening
+	Rekeningnummer             string       `json:"AcNr"`                                        // Rekeningnummer
+	DatumBoeking               date.Date    `json:"EnDa"`                                        // Datum boeking
+	Boekstukdatum              date.Date    `json:"BpDa"`                                        // Boekstukdatum
 	Boekstuknummer             string       `json:"BpNr,omitempty"`                              // Boekstuknummer
 	Factuurnummer              string       `json:"InId,omitempty"`                              // Factuurnummer
 	OmschrijvingBoeking        string       `json:"Ds,omitempty"`                                // Omschrijving boeking
@@ -185,12 +189,12 @@ type FIEntry struct {
 	Vervaldatum                *date.Date   `json:"DaEx,omitempty"`                              // Vervaldatum
 	Betalingskenmerk           string       `json:"PaId,omitempty"`                              // Betalingskenmerk
 	Beoordelaar                string       `json:"Judg,omitempty"`                              // Beoordelaar
-	BlokkerenVoorBetaling      bool         `json:"BlPa,omitempty"`                              // Blokkeren voor betaling
+	BlokkerenVoorBetaling      *bool        `json:"BlPa,omitempty"`                              // Blokkeren voor betaling
 	BedragGRekening            float64      `json:"AmGa,omitempty"`                              // Bedrag G-rekening
 	NummerReservering          int          `json:"RsNo,omitempty"`                              // Nummer reservering
 	NummerVerplichting         int          `json:"CmNo,omitempty"`                              // Nummer verplichting
-	AutomatischBetalenincasso  bool         `json:"AuPa,omitempty"`                              // Automatisch betalen/incasso
-	Terugbetalen               bool         `json:"PaBa,omitempty"`                              // Terugbetalen
+	AutomatischBetalenincasso  *bool        `json:"AuPa,omitempty"`                              // Automatisch betalen/incasso
+	Terugbetalen               *bool        `json:"PaBa,omitempty"`                              // Terugbetalen
 	Campagne                   int          `json:"CaId,omitempty"`                              // Campagne
 	Verkoopordernummer         string       `json:"OrNu,omitempty"`                              // Verkoopordernummer
 	Afletterreferentie         string       `json:"Mref,omitempty"`                              // Afletterreferentie
@@ -199,7 +203,7 @@ type FIEntry struct {
 	AfwijkendeBetaalrekening   int          `json:"IdBa,omitempty"`                              // Afwijkende betaalrekening
 	AfwijkendKenmerkMachtiging string       `json:"DdId,omitempty"`                              // Afwijkend kenmerk machtiging
 	DagenKredietbeperking      int          `json:"DaCl,omitempty"`                              // Dagen kredietbeperking
-	BetalingskortingInclBtw    bool         `json:"VaPa,omitempty"`                              // Betalingskorting incl. btw
+	BetalingskortingInclBtw    *bool        `json:"VaPa,omitempty"`                              // Betalingskorting incl. btw
 	DagenBetalingskorting      int          `json:"DaDp,omitempty"`                              // Dagen betalingskorting
 	Betalingskorting           float64      `json:"AmDp,omitempty"`                              // Betalingskorting
 	BetalingskortingInValuta   float64      `json:"AcPa,omitempty"`                              // Betalingskorting in valuta
@@ -220,6 +224,7 @@ func (f FIEntry) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
+
 	return json.Marshal(el)
 }
 
@@ -255,6 +260,8 @@ func (f FIEntry) ToElement() (Element, error) {
 
 		for _, f := range jsonObjects {
 			if k == f {
+				// value is an object
+
 				// skip empty objects
 				// @TODO: move this logic to an Objects struct aliasing
 				// map[string]interface{}
@@ -276,12 +283,13 @@ func (f FIEntry) ToElement() (Element, error) {
 
 func (f *FIEntry) UnmarshalJSON(b []byte) error {
 
+	// @TODO: make this a separate struct/method so Go generates better messages
 	in := struct {
-		NummerJournaalpost         int          `json:",omitempty"` // Nummer journaalpost
-		KenmerkRekening            string       `json:",omitempty"` // Kenmerk rekening
-		Rekeningnummer             string       `json:",omitempty"` // Rekeningnummer
-		DatumBoeking               date.Date    `json:",omitempty"` // Datum boeking
-		Boekstukdatum              date.Date    `json:",omitempty"` // Boekstukdatum
+		NummerJournaalpost         int          `json:""`           // Nummer journaalpost
+		KenmerkRekening            string       `json:""`           // Kenmerk rekening
+		Rekeningnummer             string       `json:""`           // Rekeningnummer
+		DatumBoeking               date.Date    `json:""`           // Datum boeking
+		Boekstukdatum              date.Date    `json:""`           // Boekstukdatum
 		Boekstuknummer             string       `json:",omitempty"` // Boekstuknummer
 		Factuurnummer              string       `json:",omitempty"` // Factuurnummer
 		OmschrijvingBoeking        string       `json:",omitempty"` // Omschrijving boeking
@@ -295,12 +303,12 @@ func (f *FIEntry) UnmarshalJSON(b []byte) error {
 		Vervaldatum                *date.Date   `json:",omitempty"` // Vervaldatum
 		Betalingskenmerk           string       `json:",omitempty"` // Betalingskenmerk
 		Beoordelaar                string       `json:",omitempty"` // Beoordelaar
-		BlokkerenVoorBetaling      bool         `json:",omitempty"` // Blokkeren voor betaling
+		BlokkerenVoorBetaling      *bool        `json:",omitempty"` // Blokkeren voor betaling
 		BedragGRekening            float64      `json:",omitempty"` // Bedrag G-rekening
 		NummerReservering          int          `json:",omitempty"` // Nummer reservering
 		NummerVerplichting         int          `json:",omitempty"` // Nummer verplichting
-		AutomatischBetalenincasso  bool         `json:",omitempty"` // Automatisch betalen/incasso
-		Terugbetalen               bool         `json:",omitempty"` // Terugbetalen
+		AutomatischBetalenincasso  *bool        `json:",omitempty"` // Automatisch betalen/incasso
+		Terugbetalen               *bool        `json:",omitempty"` // Terugbetalen
 		Campagne                   int          `json:",omitempty"` // Campagne
 		Verkoopordernummer         string       `json:",omitempty"` // Verkoopordernummer
 		Afletterreferentie         string       `json:",omitempty"` // Afletterreferentie
@@ -309,7 +317,7 @@ func (f *FIEntry) UnmarshalJSON(b []byte) error {
 		AfwijkendeBetaalrekening   int          `json:",omitempty"` // Afwijkende betaalrekening
 		AfwijkendKenmerkMachtiging string       `json:",omitempty"` // Afwijkend kenmerk machtiging
 		DagenKredietbeperking      int          `json:",omitempty"` // Dagen kredietbeperking
-		BetalingskortingInclBtw    bool         `json:",omitempty"` // Betalingskorting incl. btw
+		BetalingskortingInclBtw    *bool        `json:",omitempty"` // Betalingskorting incl. btw
 		DagenBetalingskorting      int          `json:",omitempty"` // Dagen betalingskorting
 		Betalingskorting           float64      `json:",omitempty"` // Betalingskorting
 		BetalingskortingInValuta   float64      `json:",omitempty"` // Betalingskorting in valuta
@@ -485,6 +493,7 @@ func (f FiDimEntry) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
+
 	return json.Marshal(el)
 }
 
@@ -520,6 +529,8 @@ func (f FiDimEntry) ToElement() (Element, error) {
 
 		for _, f := range jsonObjects {
 			if k == f {
+				// value is an object
+
 				// skip empty objects
 				// @TODO: move this logic to an Objects struct aliasing
 				// map[string]interface{}
@@ -541,6 +552,7 @@ func (f FiDimEntry) ToElement() (Element, error) {
 
 func (f *FiDimEntry) UnmarshalJSON(b []byte) error {
 
+	// @TODO: make this a separate struct/method so Go generates better messages
 	in := struct {
 		CodeVerbijzonderingsas1 string  `json:",omitempty"` // Code verbijzonderingsas 1
 		CodeVerbijzonderingsas2 string  `json:",omitempty"` // Code verbijzonderingsas 2
@@ -628,17 +640,17 @@ func (f FiPrjEntries) MarshalJSON() ([]byte, error) {
 
 // FiPrjEntry
 type FiPrjEntry struct {
-	Project                       string  `json:"PrId,omitempty"` // Project
+	Project                       string  `json:"PrId"`           // Project
 	Projectfase                   string  `json:"PrSt,omitempty"` // Projectfase
 	TypeItem                      string  `json:"VaIt,omitempty"` // Type item
 	Itemcode                      string  `json:"ItCd"`           // Itemcode
 	Omschrijving                  string  `json:"Ds,omitempty"`   // Omschrijving
 	Kostprijs                     float64 `json:"AmCo"`           // Kostprijs
-	Doorbelasten                  bool    `json:"Ch,omitempty"`   // Doorbelasten
+	Doorbelasten                  *bool   `json:"Ch,omitempty"`   // Doorbelasten
 	BedragDoorbelastenBasisvaluta float64 `json:"AmSe,omitempty"` // Bedrag doorbelasten basisvaluta
 	BedragDoorbelasten            float64 `json:"AmFc,omitempty"` // Bedrag doorbelasten
 	Valuta                        string  `json:"CuId,omitempty"` // Valuta
-	Valutakoers                   float64 `json:"Rate,omitempty"` // Valutakoers
+	Valutakoers                   float64 `json:"Rate"`           // Valutakoers
 	RapporterendeEenheid          int     `json:"Di01,omitempty"` // Rapporterende eenheid
 	Kostenplaats                  int     `json:"Di02,omitempty"` // Kostenplaats
 	Kostendrager                  int     `json:"Di03,omitempty"` // Kostendrager
@@ -656,6 +668,7 @@ func (f FiPrjEntry) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
+
 	return json.Marshal(el)
 }
 
@@ -691,6 +704,8 @@ func (f FiPrjEntry) ToElement() (Element, error) {
 
 		for _, f := range jsonObjects {
 			if k == f {
+				// value is an object
+
 				// skip empty objects
 				// @TODO: move this logic to an Objects struct aliasing
 				// map[string]interface{}
@@ -712,18 +727,19 @@ func (f FiPrjEntry) ToElement() (Element, error) {
 
 func (f *FiPrjEntry) UnmarshalJSON(b []byte) error {
 
+	// @TODO: make this a separate struct/method so Go generates better messages
 	in := struct {
-		Project                       string  `json:",omitempty"` // Project
+		Project                       string  `json:""`           // Project
 		Projectfase                   string  `json:",omitempty"` // Projectfase
 		TypeItem                      string  `json:",omitempty"` // Type item
 		Itemcode                      string  `json:""`           // Itemcode
 		Omschrijving                  string  `json:",omitempty"` // Omschrijving
 		Kostprijs                     float64 `json:""`           // Kostprijs
-		Doorbelasten                  bool    `json:",omitempty"` // Doorbelasten
+		Doorbelasten                  *bool   `json:",omitempty"` // Doorbelasten
 		BedragDoorbelastenBasisvaluta float64 `json:",omitempty"` // Bedrag doorbelasten basisvaluta
 		BedragDoorbelasten            float64 `json:",omitempty"` // Bedrag doorbelasten
 		Valuta                        string  `json:",omitempty"` // Valuta
-		Valutakoers                   float64 `json:",omitempty"` // Valutakoers
+		Valutakoers                   float64 `json:""`           // Valutakoers
 		RapporterendeEenheid          int     `json:",omitempty"` // Rapporterende eenheid
 		Kostenplaats                  int     `json:",omitempty"` // Kostenplaats
 		Kostendrager                  int     `json:",omitempty"` // Kostendrager

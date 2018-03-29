@@ -276,7 +276,7 @@ func CheckResponse(r *http.Response) error {
 
 	// Don't check content-lenght: a created response, for example, has no body
 	if r.Header.Get("Content-Length") == "0" {
-		return &ErrorResponse1{Response: r, Message: "No content in response body"}
+		// return &ErrorResponse1{Response: r, Message: "No content in response body"}
 	}
 
 	// If the statuscode is ok: don't check for errors
