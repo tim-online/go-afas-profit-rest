@@ -8,7 +8,7 @@ import (
 	"os"
 	"unicode"
 
-	"go/format"
+	"golang.org/x/tools/imports"
 
 	afas "github.com/tim-online/go-afas-profit-rest"
 )
@@ -70,7 +70,7 @@ func (g Generator) All() error {
 		// remove Vim modeline
 		b = bytes.Replace(b, []byte("// vim: ft=gotexttmpl"), []byte{}, -1)
 
-		formatted, err := format.Source(b)
+		formatted, err := imports.Process(f, b, nil)
 		if err != nil {
 			log.Println(string(b))
 			return err

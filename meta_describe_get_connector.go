@@ -81,16 +81,18 @@ type MetaDescribeGetConnectorURLParams struct {
 }
 
 type MetaDescribeGetConnectorResponseBody struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Fields      []struct {
-		ID              string `json:"id"`
-		FieldID         string `json:"fieldId"`
-		DataType        string `json:"dataType"`
-		Label           string `json:"label"`
-		Length          int    `json:"length"`
-		ControlType     int    `json:"controlType"`
-		Decimals        int    `json:"decimals"`
-		DecimalsFieldID string `json:"decimalsFieldId"`
-	} `json:"fields"`
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
+	Fields      []GetConnectorField `json:"fields"`
+}
+
+type GetConnectorField struct {
+	ID              string `json:"id"`
+	FieldID         string `json:"fieldId"`
+	DataType        string `json:"dataType"`
+	Label           string `json:"label"`
+	Length          int    `json:"length"`
+	ControlType     int    `json:"controlType"`
+	Decimals        int    `json:"decimals"`
+	DecimalsFieldID string `json:"decimalsFieldId"`
 }

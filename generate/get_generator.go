@@ -155,7 +155,11 @@ func generateGetConnectorStructFields(d afas.MetaDescribeGetConnectorResponseBod
 		case "boolean":
 			typ = "bool"
 		case "date":
-			typ = "time.Time"
+			typ = "date.Date"
+		case "decimal":
+			typ = "float64"
+		case "blob":
+			typ = "[]byte"
 		default:
 			return GetConnectorStructFields{}, errors.Errorf("Unkown datatype: %s", f.DataType)
 		}
