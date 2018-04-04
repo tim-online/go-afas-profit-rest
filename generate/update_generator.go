@@ -241,9 +241,9 @@ func generateUpdateConnectorObjectStructFieldFromField(f afas.UpdateConnectorFie
 		}
 	case "date":
 		if f.Mandatory {
-			typ = "date.Date"
+			typ = "time.Time"
 		} else {
-			typ = "*date.Date"
+			typ = "*time.Time"
 		}
 	case "decimal":
 		typ = "float64"

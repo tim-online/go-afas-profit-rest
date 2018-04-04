@@ -155,7 +155,7 @@ func generateGetConnectorStructFields(d afas.MetaDescribeGetConnectorResponseBod
 		case "boolean":
 			typ = "bool"
 		case "date":
-			typ = "date.Date"
+			typ = "time.Time"
 		case "decimal":
 			typ = "float64"
 		case "blob":
