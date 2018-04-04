@@ -68,7 +68,7 @@ func (g Generator) All() error {
 		}
 
 		// remove Vim modeline
-		b = bytes.Replace(b, []byte("// vim: ft=gotexttmpl"), []byte{}, -1)
+		b = bytes.Replace(b, []byte("// vim: ft=gotexttmpl noet"), []byte{}, -1)
 
 		formatted, err := imports.Process(f, b, nil)
 		if err != nil {
