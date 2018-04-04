@@ -1,9 +1,12 @@
 package main
 
 var plurals = map[string]string{
-	"FiEntries":    "FIEntry",
-	"FiDimEntries": "FiDimEntry",
-	"FiPrjEntries": "FiPrjEntry",
+	"FiEntries":                                "FIEntry",
+	"FiDimEntries":                             "FiDimEntry",
+	"FiPrjEntries":                             "FiPrjEntry",
+	"OmniBoostProjectMaintenanceContacts":      "OmniBoostProjectMaintenanceContact",
+	"OmniBoostProjectMaintenanceProjectGroups": "OmniBoostProjectMaintenanceProjectGroup",
+	"OmniBoostProjectMaintenanceProjects":      "OmniBoostProjectMaintenanceProject",
 }
 
 func IsPlural(s string) bool {

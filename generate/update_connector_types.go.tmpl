@@ -46,8 +46,8 @@ func ({{.Variable}} {{.Plural}}) MarshalJSON() ([]byte, error) {
 
 // {{.Comment}}
 type {{.Name}} struct {
-    {{range .Fields}} {{.Name}} {{.Type}} `json:"{{.JSONName}}{{.Tags}}"` // {{.Comment}}
-    {{end}}
+	{{range .Fields}} {{.Name}} {{.Type}} `json:"{{.JSONName}}{{.Tags}}"` // {{.Comment}}
+	{{end}}
 }
 
 func ({{.Variable}} {{.Name}}) MarshalJSON() ([]byte, error) {
@@ -60,10 +60,10 @@ func ({{.Variable}} {{.Name}}) MarshalJSON() ([]byte, error) {
 }
 
 func ({{.Variable}} {{.Name}}) ToElement() (Element, error) {
-    // If struct is empty: do nothing
-    if zero.IsZero({{.Variable}}) {
-        return Element{}, nil
-    }
+	// If struct is empty: do nothing
+	if zero.IsZero({{.Variable}}) {
+		return Element{}, nil
+	}
 
 	type alias {{.Name}}
 
@@ -91,11 +91,11 @@ func ({{.Variable}} {{.Name}}) ToElement() (Element, error) {
 
 		for _, f := range jsonObjects {
 			if k == f {
-                // value is an object
+				// value is an object
 
-                // skip empty objects
-                // @TODO: move this logic to an Objects struct aliasing
-                // map[string]interface{}
+				// skip empty objects
+				// @TODO: move this logic to an Objects struct aliasing
+				// map[string]interface{}
 				if v == nil || zero.IsZero(v) {
 					continue
 				}
@@ -107,9 +107,9 @@ func ({{.Variable}} {{.Name}}) ToElement() (Element, error) {
 	}
 
 	return Element{
-        {{- if .DBIDField}}
-        DBID: {{.Variable}}.DBID(),
-        {{- end}}
+		{{- if .DBIDField}}
+			DBID: {{.Variable}}.DBID(),
+		{{- end}}
 		Fields:  fields,
 		Objects: objects,
 	}, nil
@@ -126,14 +126,14 @@ func ({{.Variable}} {{.Name}}) DBID() string {
 {{- end}}
 
 func ({{.Variable}} *{{.Name}}) UnmarshalJSON(b []byte) error {
-    {{$variable := .Variable}}
-    // @TODO: make this a separate struct/method so Go generates better messages
+	{{$variable := .Variable}}
+	// @TODO: make this a separate struct/method so Go generates better messages
 	in := struct {
-        {{range .Fields}} {{.Name}} {{.Type}} `json:"{{.Tags}}"` // {{.Comment}}
-        {{end}}
+		{{range .Fields}} {{.Name}} {{.Type}} `json:"{{.Tags}}"` // {{.Comment}}
+		{{end}}
 	}{
-        {{range .Fields}} {{.Name}}: {{$variable}}.{{.Name}},
-        {{end}}
+		{{range .Fields}} {{.Name}}: {{$variable}}.{{.Name}},
+		{{end}}
 	}
 
 	err := json.Unmarshal(b, &in)
@@ -146,15 +146,15 @@ func ({{.Variable}} *{{.Name}}) UnmarshalJSON(b []byte) error {
 
 func ({{.Variable}} {{.Name}}) JSONFields() []string {
 	return []string{
-        {{range .Fields}}{{if .IsObject}}{{else}}"{{.JSONName}}",{{end}}
-        {{end}}
+		{{range .Fields}}{{if .IsObject}}{{else}}"{{.JSONName}}",{{end}}
+		{{end}}
 	}
 }
 
 func ({{.Variable}} {{.Name}}) JSONObjects() []string {
 	return []string{
-        {{range .Objects}}"{{.}}",
-        {{end}}
+		{{range .Objects}}"{{.}}",
+		{{end}}
 	}
 }
 {{end}}

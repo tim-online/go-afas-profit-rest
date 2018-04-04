@@ -7,8 +7,8 @@ import (
 {{range .}}
 // {{.Comment}}
 type {{.Name}} struct {
-    {{range .Fields}} {{.Name}} {{.Type}} {{if .Tags}}`{{.Tags}}`{{end}} // {{.Comment}}
-    {{end}}
+	{{range .Fields}} {{.Name}} {{.Type}} {{if .Tags}}`{{.Tags}}`{{end}} // {{.Comment}}
+	{{end}}
 }
 {{end}}
 

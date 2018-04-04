@@ -11,8 +11,6 @@ type {{.Name}}UpdateRequest struct {
 
 type {{.Name}}UpdateResponseBody struct {
 	ConnectorUpdateResponseBody
-
-	Rows []{{.Name}} `json:"rows"`
 }
 
 type {{.Name}}UpdateRequestBody struct {
@@ -41,18 +39,10 @@ func (r *{{.Name}}UpdateRequest) RequestBody() *{{.Name}}UpdateRequestBody {
 	return body
 }
 
-// func (r *{{.Name}}UpdateRequest) ResponseBody() *{{.Name}}UpdateResponseBody {
-// 	rb := r.ConnectorUpdateRequest.ResponseBody()
-// 	rows := rb.Rows.(*[]{{.Name}})
-// 	return &{{.Name}}UpdateResponseBody{
-// 		ConnectorUpdateResponseBody: *rb,
-// 		Rows: *rows,
-// 	}
-// }
-
 func (s *{{.Name}}Service) NewUpdateRequest() {{.Name}}UpdateRequest {
 	r := s.api.Connector.NewUpdateRequest()
 	r.URLParams().ConnectorID = "{{.Name}}"
+    r.SetRequestBody(&{{.Name}}UpdateRequestBody{})
 	return {{.Name}}UpdateRequest{ConnectorUpdateRequest: r}
 }
 
