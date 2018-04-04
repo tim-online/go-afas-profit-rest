@@ -18,7 +18,15 @@ type Generator struct {
 
 func (g Generator) NewAPI() *afas.API {
 	accountNumber := os.Getenv("AFAS_ACCOUNTNUMBER")
+	if accountNumber == "" {
+		log.Fatal("AFAS_ACCOUNTNUMBER can't be empty")
+	}
+
 	token := os.Getenv("AFAS_TOKEN")
+	if token == "" {
+		log.Fatal("AFAS_TOKEN can't be empty")
+	}
+
 	api := afas.NewAPI(nil, accountNumber, token)
 	api.SetDebug(false)
 	return api
