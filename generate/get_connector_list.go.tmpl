@@ -7,7 +7,7 @@ type {{.Name}}ListRequest struct {
 type {{.Name}}ListResponseBody struct {
 	ConnectorListResponseBody
 
-	Rows []{{.Name}} `json:"rows"`
+	Rows {{.Plural}} `json:"rows"`
 }
 
 func (r *{{.Name}}ListRequest) ResponseBody() *{{.Name}}ListResponseBody {

@@ -131,12 +131,22 @@ func generateGetConnectorResponseStruct(d afas.MetaDescribeGetConnectorResponseB
 	name := normalizeIdentifier(d.Name)
 	variable := strings.ToLower(string([]rune(name)[0]))
 
+	isSlice := false
+	plural := ""
+	if IsPlural(name) {
+		isSlice = true
+		plural = name
+		name = GetSingular(name)
+	}
+
 	return GetConnectorStruct{
 		Comment:  comment,
 		Name:     name,
 		ID:       d.Name,
 		Variable: variable,
 		Fields:   fields,
+		IsSlice:  isSlice,
+		Plural:   plural,
 	}, nil
 }
 
@@ -191,6 +201,8 @@ type GetConnectorStruct struct {
 	ID       string
 	Variable string
 	Fields   GetConnectorStructFields
+	IsSlice  bool
+	Plural   string
 }
 
 type GetConnectorStructFields []GetConnectorStructField
