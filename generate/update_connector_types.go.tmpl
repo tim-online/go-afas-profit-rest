@@ -4,7 +4,9 @@ package afas
 
 import (
 	"encoding/json"
+	"errors"
 	"time"
+	"unicode/utf8"
 
 	// "github.com/cockroachdb/apd"
 	"github.com/cydev/zero"
@@ -149,6 +151,37 @@ func ({{.Variable}} {{.Name}}) JSONFields() []string {
 		{{range .Fields}}{{if .IsObject}}{{else}}"{{.JSONName}}",{{end}}
 		{{end}}
 	}
+}
+
+func ({{.Variable}} {{.Name}}) Validate() error {
+	{{$struct := .}}
+	{{range .Fields}}
+		{{if and (.ValidationRules.Required) (eq .Type "string")}}
+		if {{$struct.Variable}}.{{.Name}} == "" {
+			return errors.New("{{.Name}} ({{.JSONName}}) is a required field")
+		}
+		{{end}}
+
+		{{if and (.ValidationRules.NotZero) (eq .Type "int")}}
+		if {{$struct.Variable}}.{{.Name}} == 0 {
+			return errors.New("{{.Name}} ({{.JSONName}}) can not be zero")
+		}
+		{{end}}
+
+		{{if and (.ValidationRules.NotZero) (eq .Type "float64")}}
+		if {{$struct.Variable}}.{{.Name}} == 0.0 {
+			return errors.New("{{.Name}} ({{.JSONName}}) can not be zero")
+		}
+		{{end}}
+
+		{{if and (.ValidationRules.MaxLength) (eq .Type "string")}}
+		if utf8.RuneCountInString({{$struct.Variable}}.{{.Name}}) > {{.ValidationRules.MaxLength}} {
+			return errors.New("{{.Name}} ({{.JSONName}}) can't be longer then {{.ValidationRules.MaxLength}} characters")
+		}
+		{{end}}
+	{{end}}
+
+	return nil
 }
 
 func ({{.Variable}} {{.Name}}) JSONObjects() []string {

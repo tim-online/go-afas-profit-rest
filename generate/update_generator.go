@@ -273,28 +273,24 @@ func generateUpdateConnectorObjectStructFieldFromField(f afas.UpdateConnectorFie
 		tags = ",omitempty"
 	}
 
-	if f.NotZero {
-		// @TODO: do something with this: validation rules?
-	}
-
-	if f.Length > 0 {
-		// @TODO: do something with this: validation rules?
-	}
-
-	if f.Decimals > 0 {
-		// @TODO: do something with thi: validation rules?
+	vr := ValidationRules{
+		Required:    f.Mandatory,
+		NotZero:     f.NotZero,
+		MaxLength:   f.Length,
+		NumDecimals: f.Decimals,
 	}
 
 	// comment behind struct field
 	comment := f.Label
 
 	return UpdateConnectorObjectStructField{
-		Comment:  comment,
-		Name:     name,
-		Tags:     tags,
-		Type:     typ,
-		JSONName: jsonName,
-		IsObject: false,
+		Comment:         comment,
+		Name:            name,
+		Tags:            tags,
+		Type:            typ,
+		JSONName:        jsonName,
+		IsObject:        false,
+		ValidationRules: vr,
 	}, nil
 }
 
@@ -339,13 +335,13 @@ type UpdateConnectorObjectStruct struct {
 type UpdateConnectorObjectStructFields []UpdateConnectorObjectStructField
 
 type UpdateConnectorObjectStructField struct {
-	Name     string
-	Type     string
-	Tags     string
-	Comment  string
-	JSONName string
-	IsObject bool
-	// ValidationRules
+	Name            string
+	Type            string
+	Tags            string
+	Comment         string
+	JSONName        string
+	IsObject        bool
+	ValidationRules ValidationRules
 }
 
 func generateUpdateConnectorObjects(o afas.UpdateConnectorObject) ([]UpdateConnectorObjectStruct, error) {
@@ -428,4 +424,11 @@ func generateUpdateConnectorObject(o afas.UpdateConnectorObject) (UpdateConnecto
 		IsSlice:   isSlice,
 		Plural:    plural,
 	}, nil
+}
+
+type ValidationRules struct {
+	Required    bool
+	NotZero     bool
+	MaxLength   int
+	NumDecimals int
 }
