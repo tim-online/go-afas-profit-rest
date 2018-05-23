@@ -18,6 +18,14 @@ import (
 // {{.Plural}}
 type {{.Plural}} []{{.Name}}
 
+func ({{.Variable}} {{.Plural}}) Validate() []error {
+	var errs []error
+	for _, {{.Variable}}{{.Variable}} := range {{.Variable}} {
+		errs = append(errs, {{.Variable}}{{.Variable}}.Validate()...)
+	}
+	return errs
+}
+
 func ({{.Variable}} {{.Plural}}) MarshalJSON() ([]byte, error) {
 	// If struct is empty: do nothing
 	if zero.IsZero({{.Variable}}) {
@@ -153,35 +161,52 @@ func ({{.Variable}} {{.Name}}) JSONFields() []string {
 	}
 }
 
-func ({{.Variable}} {{.Name}}) Validate() error {
+func ({{.Variable}} {{.Name}}) Validate() []error {
+	var errs []error
 	{{$struct := .}}
 	{{range .Fields}}
+		{{if .IsObject}}
+		errs = append(errs, {{$struct.Variable}}.{{.Name}}.Validate()...)
+		{{end}}
+
 		{{if and (.ValidationRules.Required) (eq .Type "string")}}
 		if {{$struct.Variable}}.{{.Name}} == "" {
-			return errors.New("{{.Name}} ({{.JSONName}}) is a required field")
+			err := errors.New("{{.Name}} ({{.JSONName}}) is a required field")
+			if err != nil {
+				errs = append(errs, err)
+			}
 		}
 		{{end}}
 
-		{{if and (.ValidationRules.NotZero) (eq .Type "int")}}
+		{{if and (.ValidationRules.NotZero) (.ValidationRules.Required) (eq .Type "int")}}
 		if {{$struct.Variable}}.{{.Name}} == 0 {
-			return errors.New("{{.Name}} ({{.JSONName}}) can not be zero")
+			err := errors.New("{{.Name}} ({{.JSONName}}) can not be zero")
+			if err != nil {
+				errs = append(errs, err)
+			}
 		}
 		{{end}}
 
 		{{if and (.ValidationRules.NotZero) (eq .Type "float64")}}
 		if {{$struct.Variable}}.{{.Name}} == 0.0 {
-			return errors.New("{{.Name}} ({{.JSONName}}) can not be zero")
+			err := errors.New("{{.Name}} ({{.JSONName}}) can not be zero")
+			if err != nil {
+				errs = append(errs, err)
+			}
 		}
 		{{end}}
 
 		{{if and (.ValidationRules.MaxLength) (eq .Type "string")}}
 		if utf8.RuneCountInString({{$struct.Variable}}.{{.Name}}) > {{.ValidationRules.MaxLength}} {
-			return errors.New("{{.Name}} ({{.JSONName}}) can't be longer then {{.ValidationRules.MaxLength}} characters")
+			err := errors.New("{{.Name}} ({{.JSONName}}) can't be longer then {{.ValidationRules.MaxLength}} characters")
+			if err != nil {
+				errs = append(errs, err)
+			}
 		}
 		{{end}}
 	{{end}}
 
-	return nil
+	return errs
 }
 
 func ({{.Variable}} {{.Name}}) JSONObjects() []string {
