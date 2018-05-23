@@ -55,6 +55,10 @@ func (r *{{.Name}}InsertRequest) RequestBody() *{{.Name}}InsertRequestBody {
 	return body
 }
 
+func (r *{{.Name}}InsertRequest) SetRequestBody(requestBody *{{.Name}}InsertRequestBody) {
+	r.ConnectorInsertRequest.SetRequestBody(requestBody)
+}
+
 func (s *{{.Name}}Service) NewInsertRequest() {{.Name}}InsertRequest {
 	r := s.api.Connector.NewInsertRequest()
 
