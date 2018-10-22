@@ -27,7 +27,7 @@ const (
 var (
 	BaseURL = url.URL{
 		Scheme: "https",
-		Host:   "{account_number}.afasonlineconnector.nl",
+		Host:   "{account_number}.rest.afas.online",
 		Path:   "/profitrestservices/",
 	}
 )
