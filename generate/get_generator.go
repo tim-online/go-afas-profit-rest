@@ -13,6 +13,7 @@ import (
 )
 
 type GetGenerator struct {
+	api *afas.API
 }
 
 func (g GetGenerator) NewAPI() *afas.API {
@@ -25,7 +26,7 @@ func (g GetGenerator) NewAPI() *afas.API {
 
 func (g GetGenerator) Generate(connectors afas.GetConnectors) (map[string]io.Reader, error) {
 	files := map[string]io.Reader{}
-	api := g.NewAPI()
+	api := g.api
 
 	for _, c := range connectors {
 		req := api.Meta.NewDescribeGetConnectorRequest()

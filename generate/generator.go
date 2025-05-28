@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net/url"
 	"os"
 	"unicode"
 
@@ -28,7 +29,20 @@ func (g Generator) NewAPI() *afas.API {
 	}
 
 	api := afas.NewAPI(nil, accountNumber, token)
-	api.SetDebug(false)
+
+	debug := os.Getenv("AFAS_DEBUG")
+	if debug != "" {
+        api.SetDebug(true)
+	}
+
+	baseURL := os.Getenv("AFAS_BASE_URL")
+	if baseURL != "" {
+		u, err := url.Parse(baseURL)
+		if err !=  nil {
+			log.Fatal(err)
+		}
+		api.SetBaseURL(*u)
+	}
 	return api
 }
 
@@ -42,7 +56,7 @@ func (g Generator) All() error {
 
 	files := map[string]io.Reader{}
 
-	getGenerator := GetGenerator{}
+	getGenerator := GetGenerator{api: api}
 	getFiles, err := getGenerator.Generate(resp.GetConnectors)
 	if err != nil {
 		return err
@@ -51,7 +65,7 @@ func (g Generator) All() error {
 		files[k] = v
 	}
 
-	updateGenerator := UpdateGenerator{}
+	updateGenerator := UpdateGenerator{api: api}
 	updateFiles, err := updateGenerator.Generate(resp.UpdateConnectors)
 	if err != nil {
 		return err
